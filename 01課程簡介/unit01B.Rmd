@@ -1,0 +1,76 @@
+---
+title: UNIT01B：互動式的資料視覺化
+author: 中山大學管理學院 卓雍然
+date: "`r Sys.time()`"
+output: 
+  html_document:
+    highlight: pygments
+    theme: flatly
+    css: ../style.css
+---
+
+```{r results='hide', message=FALSE, warning=FALSE, echo=F}
+# basic setup code, do not change!
+rm(list=ls(all=T))
+knitr::opts_chunk$set(comment = NA)
+knitr::opts_knit$set(global.par = TRUE)
+par(cex=0.8); options(scipen=20, digits=5, width=80)
+if(!require(pacman)) install.packages("pacman")
+```
+
+##### 1. 讀進資料
+```{r}
+pacman::p_load(RColorBrewer, dplyr, d3heatmap, googleVis)
+spectral = brewer.pal(11, "Spectral")
+load("data/acquire.rdata")
+```
+
+##### 2. 通路·部門矩陣
+```{r}
+dim(mx)  # chain.dept matrix 
+```
+
+```{r fig.height=14, fig.width=9}
+d3heatmap(log(1+mx), col=rev(spectral))
+```
+
+##### 3. 顧客族群的平均部門消費
+部門消費金額對顧客分類，然後算(畫)出每一顧客集群在每一產品部門的平均消費金額
+```{r  fig.height=8, fig.width=9}
+sapply(split(as.data.frame.matrix(x), rfm2$km80), colMeans) %>%
+  {log(1+.)} %>% d3heatmap(colors=rev(spectral))
+```
+
+##### 4. 多重尺度比較工具
+```{r results='asis', tidy=FALSE}
+op = options(gvis.plot.tag='chart')
+
+df = rfm2 %>% 
+  mutate(km80 =  sprintf("%02d", km80)) %>% 
+  group_by(km80) %>% summarise(
+    '平均購買頻率' = mean(freq),
+    '平均客單價' = mean(money),
+    '集群總營收貢獻' = sum(freq*money),
+    '集群大小'  = n(),
+    '顧客平均營收貢獻'  = mean(freq*money),
+    '顧客平均距今購買天數' = mean(recent),
+    year = 2013) 
+
+plot( gvisMotionChart(
+  df, "km80", "year", 
+  options=list(width=800, height=600)))
+```
+
+<span style="font-size:24px">`r "\U1F4A1"`</span> 
+你需要打開瀏覽器的FLASH選項才能看見動態泡泡圖。
+
+<br>
+
+##### 5. 動態趨勢比較
+```{r results='asis', tidy=FALSE}
+plot( gvisMotionChart(
+  CustSegments, "status", "year",
+  options=list(width=720, height=480) ) )
+```
+
+<br>

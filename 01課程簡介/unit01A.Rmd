@@ -1,0 +1,92 @@
+---
+title: UNIT01A：商業大數據簡單案例
+author: 中山大學管理學院 卓雍然
+date: "`r Sys.time()`"
+output: 
+  html_document:
+    highlight: pygments
+    theme: flatly
+    css: ../style.css
+---
+
+```{r results='hide', message=FALSE, warning=FALSE, echo=F}
+# basic setup code, do not change!
+rm(list=ls(all=T))
+knitr::opts_chunk$set(comment = NA)
+knitr::opts_knit$set(global.par = TRUE)
+par(cex=0.8); options(scipen=20, digits=5, width=80)
+if(!require(pacman)) install.packages("pacman")
+```
+
+```{r results='hide', message=FALSE, warning=FALSE, echo=F}
+Sys.setenv(SPARK_HOME="/usr/local/spark/spark-2.1.0-bin-hadoop2.7")
+library(SparkR, lib.loc=c(file.path(Sys.getenv("SPARK_HOME"),"R","lib")))
+sparkR.session(master = "spark://hnamenode:7077", sparkConfig = list(
+  spark.driver.memory = "32G",
+  spark.executor.memory = "8G",
+  spark.yarn.executor.memoryOverhead = "4096" ))
+library(magrittr); library(d3heatmap); library(RColorBrewer)
+spectral = brewer.pal(11, "Spectral")
+```
+
+<hr>
+
+##### 1. 讀進資料
+```{r}
+TX = read.parquet("hdfs:/home/tonychuo/acquire/pq/TX")
+```
+
+##### 2. 資料表格 (結構化資料)
+```{r}
+head(TX,10)
+```
+
+##### 資料欄位、格式
+```{r}
+printSchema(TX)
+```
+
+##### 資料大小
+```{r}
+count(TX)
+```
+
+##### 資料概況
+```{r}
+TX %>% agg(
+  n_id = n_distinct(TX$id), 
+  n_chain = n_distinct(TX$chain), 
+  n_dept = n_distinct(TX$dept),
+  n_category = n_distinct(TX$category),
+  n_brand = n_distinct(TX$brand)
+  ) %>% collect
+```
+
+##### 3. 資料彙整
+```{r}
+mxCD = sum(pivot(groupBy(TX,"chain"),"dept"),"purchaseamount") %>% collect 
+```
+
+```{r}
+sparkR.session.stop() # disconnect from Spark
+```
+
+```{r}
+dim(mxCD)
+```
+```{r}
+head(mxCD,5)
+```
+
+##### 4. 資料視覺化
+```{r fig.height=14, fig.width=9, eval=F}
+mx = mxCD; mx[is.na(mx) | mx < 0] = 0
+rownames(mx) = mx$chain; mx$chain=NULL
+names(mx) = paste0('dept', names(mx))
+d3heatmap(log(1+mx), col=rev(spectral))
+```
+
+
+<br>
+
+
