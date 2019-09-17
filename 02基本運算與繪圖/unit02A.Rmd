@@ -1,0 +1,433 @@
+---
+title: UNIT2A：基本運算
+author: 中山大學管理學院 卓雍然
+date: "`r Sys.time()`"
+output: 
+  html_document:
+    highlight: pygments
+    theme: flatly
+    css: ../style.css
+editor_options: 
+  chunk_output_type: inline
+---
+
+<hr>
+基本的程式筆記設定，安裝、載入一些基本的套件
+```{r  results='hide', message=FALSE, warning=FALSE}
+rm(list=ls(all=T))
+knitr::opts_chunk$set(comment = NA)
+knitr::opts_knit$set(global.par = TRUE)
+par(cex=0.8); options(scipen=20, digits=4, width=90)
+if(!require(pacman)) install.packages("pacman")
+pacman::p_load(magrittr)
+```
+這個區段主要是設定筆記網頁的格式和載入(安裝)一些基本的套件，請大家不要改動<br><hr>
+
+
+###【A】一個最簡單的R程式
+Given a strategy which may lead to $n$ different outcomes ...
+
++ 機率 $p_i$ : the probability of the $i$-th outcome, $i \in [1, n]$
++ 報償 $v_i$ : the payoff of the $i$-th outcome
++ 期望報償 $\pi$ : the expected payoff of the strategy
+
+$$\pi = \sum_{i=1}^{n} p_i \times v_i \qquad(1)$$ 
+
+**1. 定義資料物件：** 分別把報酬($v_i$)和機率($p_i$)放在`v`和`p`這兩個<z>數值向量</z>之中
+```{r}
+v = c(100, 50, -50, 0)
+p = c(0.1, 0.2, 0.3, 0.4)
+```
+
+**2. 執行運算式**
+用`sum(p * v)`這一個<z>運算式</z>算出$\pi$的值，放在`pi`這個<z>物件</z>裡面，
+```{r}
+pi = sum(p * v)
+```
+
+**3. 印出結果 **
+並且把它列印出來
+```{r}
+pi
+```
+
+<br><hr>
+###【B】『值』的種類 Types of Automic Values
+```{r}
+noTimes = 3L                   # 整數 integer
+myWeight = 75.2                # 數值 numeric
+isAsian = TRUE                 # 邏輯 Boolin
+myName = "Tony Chuo"           # 字串 character 
+date1 = as.Date("2019-01-01")  # 日期 Date
+```
+
+<br><hr>
+###【C】基本資料結構 - 向量 Vector
+
+**(基本值的)向量物件**
+```{r}
+noBuy = c(3L, 5L, 1L, 1L, 3L)               # 整數向量
+height = c(175, 168, 180, 181, 169)         # 數值向量
+isMale = c(FALSE, TRUE, FALSE, TRUE, TRUE)  # 邏輯向量
+```
+
+**字串向量**
+```{r}
+name = c("Amy", "Bob", "Cindy", "Danny", "Edward")  
+```
+
+**類別向量**
+```{r}
+gender = factor( c("F", "M", "F", "M", "M") )     
+skin_color = factor( c("black", "black", "white", "yellow", "white") )
+```
+
+<p class="wwl">
+<span style="font-size:16px">`r "\U1F4A1"` 學習重點：</span><br>
+&emsp; ■ <z>向量</z>是R的基本資料結構<br>
+&emsp; ■ <z>單值</z>(如`noTime`、`myWeight`、`isAsian`、`myName`、`date1`)其實都是**長度為1**的向量物件<br>
+&emsp; ■ 在物件導向的語言裡面，<z>資料結構</z>又稱為<z>Class</z><br>
+&emsp; ■ 我們可以用`str()`和`class()`這兩個內建功能來查看物件的結構和種類<br>
+</p class="wwl">
+
+```{r}
+class(isMale)
+```
+
+```{r}
+class(gender)
+```
+
+```{r}
+str(gender)
+```
+
+
+<br><hr>
+###【D】運算符號 (Operator)
+
+&emsp; ■ 早期的R，其最主要的目的就是要簡化向量運算<br>
+&emsp; ■ 四則運算和內建功能大多都可以直接作用在向量上面<br>
+
+```{r}
+c(1, 2, 3, 4) * c(1, 10, 100, 1000)
+```
+
+連續的整數 
+```{r}
+1:6
+```
+
+次方運算和科學記號
+```{r}
+10^(-2:3)
+```
+
+當向量不一樣長時 ...
+```{r}
+c(100, 200, 300, 400) / c(10, 20)
+```
+
+單值：長度為1的向量
+```{r}
+c(100, 200, 300, 400) / 10
+```
+
+```{r}
+c(10,20,30,40,50,60,70,80) + c(1, 2, 3)
+```
+
+指定物件的名稱： `=` 和 `<-` Assignment Operator
+```{r}
+Prob = c(0.1, 0.2, 0.3, 0.4)
+Value <- c(120, 100, -50, -60)
+Prob * Value
+```
+
+邏輯運算 Logic Operator
+```{r}
+c(0.1, 0.2, 0.3, 0.4) > c(0, 1, 2, 3)
+```
+
+```{r}
+c(0.1, 0.2, 0.3, 0.4) < 0.25
+```
+
+```{r}
+c('Amy','Bob','Cindy','Danny') == 'Cindy'
+```
+
+```{r}
+c(100, 200, 300, 400) %in% c(250, 300, 350, 400)
+```
+
+<p class="wwl">
+<span style="font-size:16px">`r "\U1F4A1"` 學習重點：</span><br>
+&emsp; ■ 『指定(`=`, `<-`)』與『測試相等(`==`)』是兩個不同的運算符號<br>
+&emsp; ■ 邏輯運算的結果通常是一個邏輯向量<br>
+</p class="wwl">
+
+<br><hr>
+###【E】功能(函數)與參數 Function & Argument
+The Expected Payoff is： $\sum p \times v$
+```{r}
+expPayoff = sum(Prob * Value)
+expPayoff
+```
+
+內建功能通常第一個參數都是向量物件
+```{r}
+sqrt(1:9)
+```
+
+<p class="wwl">
+<span style="font-size:16px">`r "\U1F4A1"` 學習重點：</span>
+R的功能通常都有很多個參數，我們需要注意參數的：<br>
+&emsp; &emsp; ■ 名稱<br>
+&emsp; &emsp; ■ 位置<br>
+&emsp; &emsp; ■ 預設值<br>
+</p class="wwl">
+
+```{r}
+log(100, base=10)
+```
+
+```{r eval=F}
+help(log)
+```
+
+```{r}
+log(x=1000, base=10)
+```
+
+```{r}
+log(1000,10)
+```
+
+**連續呼叫功能**
+```{r}
+round(sqrt(1:9), 2)
+```
+
+**管線運算符號：** `%>%`
+```{r}
+sqrt(1:9) %>% round(2)
+```
+
+<br><hr>
+### 【F】向量索引 Vector Indexing
+我們用索引來選擇資料結構中的子元件，索引本身也是向量，常用的索引方式包括：<br>
+
+**位置索引：整數向量**
+```{r}
+noBuy[c(1, 5)]
+height[2:4]
+```
+
+```{r}
+i = c(1:3, 5)
+isMale[i]
+```
+
+**名稱索引：字串向量**
+資料結構的子元件有名稱的時候
+```{r}
+height
+```
+
+```{r}
+names(height) = c("Amy", "Bob", "Cindy", "Danny", "Edward")
+height
+```
+
+我們可以用子元件的名稱來做索引 
+```{r}
+height[ c('Bob','Danny') ]
+```
+
+**條件索引：邏輯向量** <br>
+條件索引基本上是和原向量一樣長的一個邏輯向量
+```{r}
+noBuy[c(T,T,F,F,T)]
+height[c(T,T,F,F,T)]
+```
+
+<span style="font-size:16px">`r "\U1F4A1"`:</span> 
+條件索引讓我們可以使用邏輯運算式的結果當索引、使用條件來挑選資料結構子中的子元件<br>
+
+```{r}
+name[height > 170]
+```
+
+<br><p class="qiz">
+<span style="font-size:24px">`r "\U1F5FF"` 練習：</span><br>
+請使用這些預先定義好的向量回答以下問題 ...<br>
+</p class="qiz">
+```{r}
+noBuy = c(3L, 5L, 1L, 1L, 3L)                       # 整數向量
+height = c(175, 168, 180, 181, 169)                 # 數值向量
+isMale = c(FALSE, TRUE, FALSE, TRUE, TRUE)          # 邏輯向量
+name = c("Amy", "Bob", "Cindy", "Danny", "Edward")  # 字串向量
+gender = factor( c("F", "M", "F", "M", "M") )       # 邏輯向量
+skin_color = factor( c("black", "black", "white", "yellow", "white") )  # 邏輯向量
+```
+
+<span style="font-size:16px">`r "\U1F5FF"`</span>:
+請列出 所有男生的名字
+```{r}
+name[isMale]
+```
+
+<span style="font-size:16px">`r "\U1F5FF"`</span>:
+請列出 身高大於180cm的人的名字
+```{r}
+
+```
+
+<span style="font-size:16px">`r "\U1F5FF"`</span>:
+請列出 身高大於180cm的黃種人的名字
+```{r}
+
+```
+
+<span style="font-size:16px">`r "\U1F5FF"`</span>:
+請算出 男生的平均身高
+```{r}
+
+```
+
+<span style="font-size:16px">`r "\U1F5FF"`</span>:
+請算出 女生總共買了多少次
+```{r}
+
+```
+
+<span style="font-size:16px">`r "\U1F5FF"`</span>:
+請算出 白種女生總共有多少人
+```{r}
+
+```
+
+<br><hr>
+
+###【G】資料框 DataFrame
+通常資料框中的每一筆記錄代表一個分析單位，每個欄位值代表分析單位之中的某一種屬性
+```{r}
+df = data.frame(
+  noBuy = c(3L, 5L, 1L, 1L, 3L),
+  height = c(175, 168, 180, 181, 169),
+  isMale = c(FALSE, TRUE, FALSE, TRUE, TRUE),
+  name = c("Amy", "Bob", "Cindy", "Danny", "Edward"),
+  gender = factor( c("F", "M", "F", "M", "M") ),
+  skin_color = factor( c("black", "black", "white", "yellow", "white")),
+  stringsAsFactors=FALSE
+  )
+df
+```
+
+**方便篩選**
+```{r}
+subset(df, isMale & skin_color == "black")
+```
+
+**方便統計**
+```{r}
+mean(df$height)
+```
+
+**分類運算**
+```{r}
+tapply(df$height, df$gender, mean)
+```
+
+<br><hr>
+###【H】資料框索引 DataFrame Indexing
+資料框有非常多種索引方式，光是靠這一些索引方式，就可以做很精緻的探索性資料分析：
+
++ 整數向量索引：`df[c(1,2), c(2,3)]` 
++ 空索引：`df[c(1,2), ]`
++ 邏輯向量索引：`df[df$height < 175 & df$isMale, ]`
++ 字串向量索引：`df[df$height < 175 & df$isMale, "name"]`
++ 欄位名稱索引(`$`)：`df$name[df$height < 175 & df$isMale]`
++ subset()功能：
+    + `subset(df, height<175 & isMale)`
+    + `subset(df, height<175 & isMale, name)`
+    + `subset(df, height<175 & isMale)$name`
+    + `subset(df, height<175 & isMale, c(name, noBuy))`
+
+```{r}
+df[c(1,2), c(2,3)]
+df[c(1,2), ]
+df[df$height < 175 & df$isMale, ]
+df[df$height < 175 & df$isMale, "name"]
+df$name[df$height < 175 & df$isMale]
+
+subset(df, height<175 & isMale)
+subset(df, height<175 & isMale, name)
+subset(df, height<175 & isMale)$name
+subset(df, height<175 & isMale, c(name, noBuy))
+```
+
+<br><p class="qiz">
+<span style="font-size:24px">`r "\U1F5FF"` 練習：</span><br>
+以下的運算式分別代表什麼意思 ...<br>
+</p class="qiz">
+
+```{r}
+df$name[df$isMale] # 所有男生的名字  
+```
+
+```{r}
+df[df$height > 180 , "name"] # 
+```
+
+```{r}
+subset(df, height > 170 & !isMale)$name # 
+```
+
+```{r}
+mean(df$height[df$isMale]) # 
+```
+
+```{r}
+df$height[!df$isMale] %>% mean # 
+```
+
+```{r}
+sum( subset(df, !isMale)$noBuy ) # 
+```
+
+```{r}
+subset(df, skin_color == "white" & !isMale ) %>% nrow # 
+```
+
+```{r}
+sum(df$skin_color == "white" & !df$isMale ) # 
+```
+
+<hr><br>
+<p class="wwl">
+<span style="font-size:24px">`r "\U1F4DD"` UNIT2A 學習重點：</span><br>
+&emsp; ■ 程式：使用『運算式』定義或變更『資料物件』的過程<br>
+&emsp; ■ 資料物件(object)的屬性：<br>
+&emsp; &emsp; § 名稱(name)<br>
+&emsp; &emsp; § 值(value)<br>
+&emsp; &emsp; § 種類(data type): `int`, `num`, `chr`, `logi`, `Date`, ...<br> 
+&emsp; &emsp; § 結構(class)： 向量(vector), 矩陣(matrix), 資料框(data_frame), 序列(list), ...<br>
+&emsp; &emsp; § 大小(dim)<br>
+&emsp; ■ 運算式(expression)的組成：<br>
+&emsp; &emsp; § 物件(object)<br>
+&emsp; &emsp; § 運算符號(operator): `{+, -, *, /}`, `{>, >=, ==}`, `{&, |}`, ...<br>
+&emsp; &emsp; § 功能函數(function): 名稱, 參數, 參數次序, 預設值 ...<br> 
+&emsp; ■ 索引(Index)：<br>
+&emsp; &emsp; § 位置索引<br>
+&emsp; &emsp; § 邏輯索引與條件選擇<br>
+&emsp; &emsp; § 名稱索引<br> 
+&emsp; ■ 資料框(data.frame)：<br>
+&emsp; &emsp; § 每一筆紀錄都有固定的欄位<br>
+&emsp; &emsp; § 每一個欄位都有固定的格式<br>
+&emsp; &emsp; § 每一筆紀錄和欄位都可以有名稱<br> 
+</p class="wwl">
+
+<br><br><br><hr>
+

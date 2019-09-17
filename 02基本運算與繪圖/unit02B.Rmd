@@ -1,0 +1,316 @@
+---
+title: UNIT2B：資料檢視與繪圖
+author: 中山大學管理學院 卓雍然
+date: "`r Sys.time()`"
+output: 
+  html_document:
+    highlight: pygments
+    theme: flatly
+    css: ../style.css
+---
+
+<hr>
+基本的程式筆記設定，安裝、載入一些基本的套件
+```{r results='hide', message=FALSE, warning=FALSE}
+rm(list=ls(all=T))
+knitr::opts_chunk$set(comment = NA)
+knitr::opts_knit$set(global.par = TRUE)
+options(scipen=20, digits=4, width=90)
+if(!require(pacman)) install.packages("pacman")
+pacman::p_load(magrittr)
+```
+以上這些程式碼請大家不要去改動<br><hr>
+
+
+###【CASE 1】世界衛生組織資料集 WHO Dataset
+
+##### 載入資料 Loading Data `read.csv()`
+```{r}
+WHO = read.csv("data/WHO.csv")
+```
+
+##### 資料結構 Data Structure `str()`
+```{r}
+str(WHO)
+```
+
+##### 資料顯示 Data Display `head()`, `tail()`
+```{r}
+head(WHO)
+```
+
+##### 資料總覽 Data Summary `summary()`
+```{r}
+summary(WHO)
+```
+<br>
+
+##### 基本資料檢視 Basic Data Examination
+
+**15歲以下人口比率** `mean()`, `sd()` 
+```{r}
+mean(WHO$Under15)
+sd(WHO$Under15)
+summary(WHO$Under15)
+```
+
+**15歲以下人口比率最低的國家** `which()`, `which.min()`, `which.max`
+```{r}
+which.min(WHO$Under15)
+WHO$Country[86]
+WHO$Country[which.min(WHO$Under15)]
+```
+
+**15歲以下人口比率最高的國家**
+```{r}
+which.max(WHO$Under15)
+WHO$Country[124]
+WHO$Country[which.max(WHO$Under15)]
+```
+<br>
+
+##### 資料篩選 Subsetting `subset()`. `nrow()`
+```{r}
+Outliers = subset(WHO, GNI > 10000 & FertilityRate > 2.5) 
+nrow(Outliers)
+Outliers[c("Country","GNI","FertilityRate")]
+```
+
+##### 點狀圖 Scatterplot `plot()` 
+觀察兩變數之間的關係 
+```{r fig.height=4, fig.width=4}
+par(cex=0.8, mar=c(4,4,2,1)) 
+plot(WHO$GNI, WHO$FertilityRate)
+abline(v=10000, h=2.5, col='red')
+```
+<br>
+
+##### 分類計數功能 `table()`
+```{r}
+table(WHO$Region)
+```
+<br>
+
+##### 分類數量功能 `table()`
+觀察『類別』的頻率
+```{r}
+par(mar=c(12,3,4,2),cex=0.8)
+table(WHO$Region) %>% barplot(las=2, main="No. Country in Each Region")
+```
+<br>
+
+##### 直方圖 Histogram `hist()`
+觀察『數量』的分布
+```{r}
+hist(WHO$CellularSubscribers)
+```
+
+##### 盒狀圖 Boxplot `boxplot`
+比較各『類別』的『數量』分布
+```{r}
+boxplot(WHO$LifeExpectancy ~ WHO$Region)
+```
+
+```{r}
+boxplot(WHO$LifeExpectancy ~ WHO$Region, 
+        xlab = "", ylab = "Life Expectancy", 
+        main = "Life Expectancy of Countries by Region")
+```
+
+##### 分類統計功能 `tapply()`
+```{r}
+tapply(WHO$Over60, WHO$Region, mean)
+tapply(WHO$LiteracyRate, WHO$Region, min)
+tapply(WHO$LiteracyRate, WHO$Region, min, na.rm=TRUE)
+```
+
+<br><br><hr>
+
+###【CASE 2】食物成分資料 USDA Dataset
+
+##### 載入、檢視資料 Video2 - Reading in the Dataset
+```{r}
+USDA = read.csv("data/USDA.csv")
+summary(USDA)
+```
+<br>
+
+##### 簡單資料分析 Video 3 - Basic Data Analysis
+**鹽分含量：**  當資料很大的時候  `head()`, `range()`, `summary()`, `hist()`
+```{r}
+nrow(USDA)
+```
+
+```{r}
+head(USDA$Sodium, 300)
+```
+
+```{r}
+range(USDA$Sodium, na.rm=T)
+```
+
+```{r}
+summary(USDA$Sodium)
+```
+
+```{r}
+hist(USDA$Sodium)
+```
+
+```{r}
+hist(log(USDA$Sodium))
+```
+
+**鹽分含量最高的食物**
+```{r}
+# Finding the index of the food with highest sodium levels
+which.max(USDA$Sodium)
+# Get the name of the food with highest sodium levels
+USDA$Description[265]
+```
+
+**高鹽食物**
+```{r}
+# Create a subset of the foods with sodium content above 10,000mg
+HighSodium = subset(USDA, Sodium>10000)
+# Count the number of rows, or observations
+nrow(HighSodium)
+# Output names of the foods with high sodium content
+HighSodium$Description
+```
+
+**魚子醬** `match()`
+```{r}
+# Finding the index of CAVIAR in the dataset
+match("CAVIAR", USDA$Description)
+# Find amount of sodium in caviar
+USDA$Sodium[4154]
+# Doing it in one command!
+USDA$Sodium[match("CAVIAR", USDA$Description)]
+```
+
+```{r}
+USDA$Sodium[ USDA$Description == "CAVIAR" ] 
+```
+
+**統計量**
+```{r}
+# Summary function over Sodium vector
+summary(USDA$Sodium)
+# Standard deviation
+sd(USDA$Sodium, na.rm = TRUE)
+```
+<br>
+
+##### 基本繪圖 Video 4 - Plots
+
+**點狀圖：蛋白質 vs. 脂肪**
+```{r}
+# Scatter Plots
+plot(USDA$Protein, USDA$TotalFat)
+# Add xlabel, ylabel and title
+plot(USDA$Protein, USDA$TotalFat, 
+     xlab="Protein", ylab = "Fat", 
+     main = "Protein vs Fat", col = "red")
+```
+
+**直方圖：維他命C**
+```{r}
+# Creating a histogram
+hist(USDA$VitaminC, xlab = "Vitamin C (mg)", main = "Histogram of Vitamin C")
+
+# Add limits to x-axis
+hist(USDA$VitaminC, xlab = "Vitamin C (mg)", 
+     main = "Histogram of Vitamin C", xlim = c(0,100))
+
+# Specify breaks of histogram
+hist(USDA$VitaminC, xlab = "Vitamin C (mg)", 
+     main = "Histogram of Vitamin C", xlim = c(0,100), breaks=100)
+
+hist(USDA$VitaminC, xlab = "Vitamin C (mg)", 
+     main = "Histogram of Vitamin C", xlim = c(0,100), breaks=2000)
+```
+
+**盒狀圖：糖分**
+```{r}
+# Boxplots
+boxplot(USDA$Sugar, ylab = "Sugar (g)", main = "Boxplot of Sugar")
+```
+<br>
+
+##### 定義新欄位 Video 5 - Adding a variable
+```{r}
+# Creating a variable that takes value 1 if the food has higher sodium
+HighSodium = as.numeric(USDA$Sodium > mean(USDA$Sodium, na.rm=TRUE))
+
+# Adding the variable to the dataset
+USDA$HighSodium = as.numeric(USDA$Sodium > mean(USDA$Sodium, na.rm=TRUE))
+
+# Similarly for HighProtein, HigCarbs, HighFat
+USDA$HighCarbs = as.numeric(USDA$Carbohydrate > mean(USDA$Carbohydrate, na.rm=TRUE))
+
+USDA$HighProtein = as.numeric(USDA$Protein > mean(USDA$Protein, na.rm=TRUE))
+
+USDA$HighFat = as.numeric(USDA$TotalFat > mean(USDA$TotalFat, na.rm=TRUE))
+```
+<br>
+
+##### 分類計數與分類統計量 Video 6 - Summary Tables
+<p class="qiz">
+<span style="font-size:24px">`r "\U1F5FF"` 練習：</span><br>
+以下的運算式分別代表什麼意思 ...<br>
+&emsp; ■ `table(USDA$HighSodium)`<br>
+&emsp; ■ `table(USDA$HighSodium, USDA$HighFat)`<br>
+&emsp; ■ `tapply(USDA$Iron, USDA$HighProtein, mean, na.rm=TRUE)`<br>
+&emsp; ■ `tapply(USDA$VitaminC, USDA$HighCarbs, max, na.rm=TRUE)`<br>
+&emsp; ■ `tapply(USDA$VitaminC, USDA$HighCarbs, summary, na.rm=TRUE)`<br>
+</p class="qiz">
+
+```{r}
+table(USDA$HighSodium)
+```
+
+```{r}
+table(USDA$HighSodium, USDA$HighFat)
+```
+
+```{r}
+tapply(USDA$Iron, USDA$HighProtein, mean, na.rm=TRUE)
+```
+
+```{r}
+tapply(USDA$VitaminC, USDA$HighCarbs, max, na.rm=TRUE)
+```
+
+```{r}
+tapply(USDA$VitaminC, USDA$HighCarbs, summary, na.rm=TRUE)
+```
+<br>
+
+<hr><br>
+<p class="wwl">
+<span style="font-size:24px">`r "\U1F4DD"` UNIT2B 學習重點：</span><br>
+&emsp; ■ 資料檢視功能：<br>
+&emsp; &emsp; § 資料結構：`str()`<br>
+&emsp; &emsp; § 資料總覽：`summary()`<br>
+&emsp; &emsp; § 資料顯示：`head()`, `tail()`<br>
+&emsp; ■ 基本統計量(Statistics)函數：<br>
+&emsp; &emsp; § `mean()`, `median()`, `sd()`, `max()`, `min()`<br>
+&emsp; ■ 基本繪圖功能：<br>
+&emsp; &emsp; § 類別變數的分布：直條圖 `barplot()`<br>
+&emsp; &emsp; § 數量變數的分布：直方圖 `hist()`<br>
+&emsp; &emsp; § 兩數量變數的關係：點狀圖 `plot()`<br>
+&emsp; &emsp; § 比較各類別的數量分布：盒狀圖 `boxplot()`<br>
+&emsp; ■ 位置函數：<br>
+&emsp; &emsp; § `which()`, `which.max()`, `which.min()`<br>
+&emsp; ■ 最重要的兩個功能：<br>
+&emsp; &emsp; § 計算各分類的數量 `table()`<br>
+&emsp; &emsp; § 計算各分類的統計量 `tapply()`<br>
+</p class="wwl">
+
+<br><br><br>
+
+
+
+
+
