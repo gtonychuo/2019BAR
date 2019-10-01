@@ -1,0 +1,137 @@
+---
+title: UNIT4A：資料整理套件(`dplyr`)
+author: 中山大學管理學院 卓雍然
+date: "`r Sys.time()`"
+output: 
+  html_document:
+    highlight: pygments
+    theme: flatly
+    css: ../style.css
+editor_options: 
+  chunk_output_type: inline
+---
+
+<hr>
+```{r  results='hide', message=FALSE, warning=FALSE, echo=F}
+# FORMAT SETUP CODE, PLEASE DO NOT CHANGE !!!
+rm(list=ls(all=T))
+knitr::opts_chunk$set(comment = NA)
+knitr::opts_knit$set(global.par = TRUE)
+par(cex=0.8); options(scipen=20, digits=4, width=90)
+if(!require(pacman)) install.packages("pacman")
+pacman::p_load(magrittr)
+```
+
+安裝、載入一些基本的套件
+```{r results='hide', message=FALSE, warning=FALSE}
+if(!require(dplyr)) install.packages("dplyr")
+if(!require(tidyr)) install.packages("tidyr")
+if(!require(ggplot2)) install.packages("ggplot2")
+if(!require(plotly)) install.packages("plotly")
+if(!require(babynames)) install.packages("babynames")
+```
+<hr>
+
+
+### 【Chapter-4】Case Study: US Babynames
+
+**檢視資料**
+```{r}
+babynames
+```
+<br>
+
+**篩選出男生資料**
+```{r}
+mbaby = babynames %>% 
+  rename(number = n) %>% 
+  filter(year %in% seq(1880, 2017, 5), sex=="M")
+```
+<br>
+
+**某些男生名字的『數量』**
+```{r fig.height=3.5, fig.width=8}
+mbaby %>% 
+  filter(name %in% c('Steven', 'Thomas', 'Matthew')) %>%
+  arrange(name, year) %>% data.frame %>% 
+  ggplot(aes(x=year,y=number,col=name)) +
+  geom_line()
+```
+<br>
+
+**某些男生名字的『比例』**
+```{r fig.height=3.5, fig.width=8}
+mbaby %>%
+  group_by(year) %>%
+  mutate(year_total = sum(number)) %>%
+  ungroup() %>%
+  filter(name %in% c('Steven', 'Thomas', 'Matthew')) %>%
+  mutate(fraction = number / year_total) %>%
+  ggplot(aes(x=year,y=fraction,col=name)) +
+  geom_line()
+```
+<br>
+
+**簡化程式**
+```{r fig.height=3.5, fig.width=8}
+mbaby %>%
+  group_by(year) %>%
+  mutate(fraction = number / sum(number)) %>%
+  filter(name %in% c('Steven', 'Thomas', 'Matthew')) %>%
+  ggplot(aes(x=year,y=fraction,col=name)) + 
+  geom_line()
+```
+<br>
+
+**熱門男生名字的『比例』**
+```{r fig.height=4.5, fig.width=8}
+mtop = mbaby %>% group_by(year) %>% top_n(1, number) %>% 
+  pull(name) %>% unique()
+
+mbaby %>% group_by(year) %>%
+  mutate(fraction = number / sum(number)) %>%
+  filter(name %in% mtop) %>%
+  ggplot(aes(x=year,y=fraction,col=name)) + 
+  geom_line(alpha=0.5) + geom_point(size=0.5) -> g
+ggplotly(g)  
+```
+<br>
+
+**熱門女生名字的『比例』**
+```{r fig.height=4.5, fig.width=8}
+fbaby = babynames %>% 
+  rename(number = n) %>% 
+  filter(year %in% seq(1880, 2017, 5), sex=="F")
+
+ftop = fbaby %>% group_by(year) %>% top_n(1, number) %>% 
+  pull(name) %>% unique()
+
+fbaby %>% group_by(year) %>%
+  mutate(fraction = number / sum(number)) %>%
+  filter(name %in% ftop) %>%
+  ggplot(aes(x=year,y=fraction,col=name)) + 
+  geom_line(alpha=0.5) + geom_point(size=0.5) -> g
+
+ggplotly(g)  
+```
+<br><hr><br>
+
+<p class="wwl">
+<span style="font-size:20px">`r "\U1F4A1"` 學習重點：</span><br>
+&emsp; ■ 每一份資料都是一個<z>物件</z>：名稱、值、種類、結構<br>
+&emsp; ■ 每一行程式都是一個<z>運算式</z>：物件、運算符號與功能的組合<br>
+&emsp; ■ 所謂寫<z>程式</z>：使用運算式定義新物件或改變既有物件的過程<br>
+&emsp; ■ `dplyr`<z>套件</z>：提供一套方便『整理資料』的...<br>
+&emsp; &emsp; § 物件：`tibble`<br>
+&emsp; &emsp; § 運算符號：`%>%`<br>
+&emsp; &emsp; § 功能：<br>
+&emsp; &emsp; &emsp; 。`select`: 依名稱選擇欄位<br>
+&emsp; &emsp; &emsp; 。`filter`: 依條件選取紀錄<br>
+&emsp; &emsp; &emsp; 。`mutate`: 運算新欄位<br>
+&emsp; &emsp; &emsp; 。`summarise`: 欄位統計<br>
+&emsp; &emsp; &emsp; 。`group_by`: 資料分群<br>
+&emsp; &emsp; &emsp; 。... <br>
+</p class="wwl">
+
+<br><br><br><hr>
+
