@@ -1,0 +1,182 @@
+---
+title: UNIT05B：內建機率分佈功能
+author: 中山大學管理學院 卓雍然
+date: "`r Sys.time()`"
+output: 
+  html_document:
+    highlight: pygments
+    theme: flatly
+    css: ../style.css
+---
+
+```{r results='hide', message=FALSE, warning=FALSE, echo=F}
+# 這些程式碼設定網頁的格式，並安裝、載入一些基本的套件，請大家不要去改動<br>
+rm(list=ls(all=T))
+knitr::opts_chunk$set(comment = NA)
+knitr::opts_knit$set(global.par = TRUE)
+windowsFonts(BL = windowsFont("微軟正黑體")) 
+par(cex=0.8)
+options(scipen=20, digits=5, width=80)
+if(!require(pacman)) install.packages("pacman")
+```
+<hr>
+
+<br>
+```{r results='hide', message=FALSE, warning=FALSE}
+pacman::p_load(magrittr, vcd)
+```
+<hr>
+
+### 【A】R內建的機率分布與其功能函數
+R有一群內建的機率分布 
+
+* beta : `dbeta()`
+* binomial : `dbinom()`
+* Cauchy : `dcauchy()`
+* chi-squared : `dchisq()`
+* exponential : `dexp()`
+* F : `df()`
+* gamma : `dgamma()`
+* geometric : `dgeom
+* hypergeometric : `dhyper()`
+* log-normal : `dlnorm()`
+* multinomial : `dmultinom()`
+* negative binomial : `dnbinom()`
+* normal : `dnorm()`
+* Poisson : `dpois()`
+* Student's t : `dt()`
+* uniform : `dunif()`
+* Weibull : `dweibull()`
+* ...其他幾乎所有叫得出名字的機率分布都可以透過套件外掛
+
+```{r eval=F}
+?distributions
+```
+
+每一種機率分布都有四個功能函數：
+
+* `d<name>()` : density or probability function
+* `p<name>()` : cumulative density function
+* `q<name>()` : quantile function
+* `r<name>()` : random sampling
+
+<br><hr>
+
+### 【`d<name>`】Density Function 機率密度函數 (PDF) 
+`d<name>`用來求取對應到某一數值的機率密度，
+給定機率分佈的種類和它所需要的「參數」，我們就能確定「值域」之中每一點的機率密度；
+`d<name>`通常用來畫機率密度函數
+
+##### **離散機率分布**的PDF 和 它們的**參數**
+```{r fig.height=3, fig.width=8}
+par(mfrow=c(2,3), mar=c(2,4,3,2), cex=0.6)
+for(n in c(10, 20)) for(p in c(0.2, 0.5, 0.8)) 
+  dbinom(0:n, n, p) %>% 
+  barplot(names=0:n, main=sprintf("Binom[n=%d, p=%.1f]", n, p), las=2)
+```
+<br><br>
+
+##### **連續機率分布**的PDF 
+```{r fig.height=5, fig.width=8}
+par(mfrow=c(2,2), mar=c(2,4,3,2), cex=0.7)
+curve(dnorm(x,mean=50,sd=15),0,100,main="Normal")
+curve(dunif(x,min=0,max=100),0,100,main="Uniform")
+curve(dlnorm(x,meanlog=log(50),sdlog=1.5),0,100,main="Log-Normal")
+curve(dexp(x,rate=0.05),0,100,main="Exponential")
+```
+<br>
+
+##### 傳回`Normal[mean=40,sd=15]`這個機率密度函數在`x = 40`這一點的值
+```{r}
+dnorm(x=40, mean=50, sd=15)
+```
+
+##### 傳回`Normal[mean=40,sd=15]`這個機率密度函數在`x = c(0,20,40,60,80,100)`這些點的值
+```{r}
+dnorm(seq(0,100,20), mean=50, sd=15)
+```
+
+##### 連續PDF的**兩種畫法**
+```{r fig.height=2, fig.width=8}
+par(mfrow=c(1,2), mar=c(2,2,1,2),cex=0.7)
+x = seq(0,100,1)
+y = dnorm(x, mean=50, sd=15) 
+plot(x, y, type='l')
+# curve() is a easier way to plot a function (or expresion) of x
+curve(dnorm(x,mean=50,sd=15),0,100)
+```
+<br><br><hr>
+
+
+### 【`r<name>`】Random Sampling 隨機抽樣 
+`r<name>`常用來從給定參數的機率分佈之中隨機抽出樣本
+```{r}
+norm50 = rnorm(n=50, mean=50, sd=10)
+unif50 = runif(n=50, min=0, max=100)
+```
+
+```{r fig.height=2, fig.width=8}
+par(mfrow=c(1,2), mar=c(2,2,2,2),cex=0.6)
+hist(norm50,breaks=10)
+hist(unif50,breaks=10)
+```
+
+```{r fig.height=6, fig.width=8}
+par(mfrow=c(3,2), mar=c(3,2,2,2),cex=0.6)
+for(n in c(20, 200, 2000)) {
+  hist(rnorm(n, mean=50, sd=10),breaks=10,main=paste("Normal",n))
+  hist(runif(n, min=0, max=100),breaks=10,main=paste("Uniform",n))
+  }
+```
+<br><br><hr>
+
+### 【`p<name>`】Cumulative PDF (CDF) 累積機率函數 
+`p<name>`求取變數落在某數值區間的機率，給定機率分佈，我們常會想要知道目標變數會落在某一個數值空間的機率，如果隨機變數`X ~ Normal[mu=50, sd=10]`，`pnorm(x=55, 50, 10)`會傳回`X < 55`的機率；
+```{r}
+mu=50; sd=10
+pnorm(55, mu, sd)
+```
+
+<p class="qiz">
+<span style="font-size:24px">`r "\U1F9D9"` 問題討論：</span><br>
+A. 如果隨機變數`X ~ Normal[mu=100, sd=20]`，請求出以下機率： <br>
+&emsp; ■ `P[X < 110]`<br>
+&emsp; ■ `P[130 > X > 110]`<br>
+&emsp; ■ `P[X > 130]`<br>
+B. 請畫出圖形來解釋你的運算
+</p class="qiz">
+
+```{r}
+x1 = 90; x2 = 130
+p1 = pnorm(x1,100,20); p2 = pnorm(x2,100,20)
+c(p1, p2 - p1, 1 - p2)
+```
+
+```{r fig.height=2, fig.width=8}
+par(mfrow=c(1,2), mar=c(2,2,2,2),cex=0.7)
+curve(dnorm(x,100,20),40,160,main="PDF")
+abline(v=c(x1,x2),col='gray',lty=3)
+x = seq(x1,x2,length=100)
+polygon(c(x, x2, x1), c(dnorm(x,100,20), 0, 0), col="#00E9001F", border=NA)
+#
+curve(pnorm(x,100,20),40,160,main="CDF")
+abline(v=c(x1,x2),col='gray',lty=3)
+abline(h=c(p1,p2),col='pink')
+```
+<br><br><hr>
+
+### 【`q<name>`】Quantile 百分位函數 
+`q<name>`通常用來求取對應到某一機率的臨界值，如果隨機變數`X ~ Normal[mu, sd]`，`qnorm(p=0.8, mu, sd)`會傳回`Pr[X < x1] = 0.8`的臨界值`x1`；
+```{r}
+qnorm(p=0.8, 100, 20)
+```
+
+<p class="qiz">
+<span style="font-size:24px">`r "\U1F9D9"` 問題討論：</span><br>
+A. 如果隨機變數`X ~ Normal[mu=100, sd=20]`，請求`X`的90%信賴區間 <br>
+B. 請畫出圖形來解釋你的運算
+</p class="qiz">
+<br><br>
+
+
+
