@@ -14,7 +14,6 @@ output:
 rm(list=ls(all=T))
 knitr::opts_chunk$set(comment = NA)
 knitr::opts_knit$set(global.par = TRUE)
-windowsFonts(BL = windowsFont("微軟正黑體")) 
 par(cex=0.8)
 options(scipen=20, digits=5, width=80)
 if(!require(pacman)) install.packages("pacman")
