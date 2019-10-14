@@ -1,0 +1,121 @@
+---
+title: UNIT06B：離散機率的應用案例
+author: 中山大學管理學院 卓雍然
+date: "`r Sys.time()`"
+output: 
+  html_document:
+    highlight: pygments
+    theme: flatly
+    css: ../style.css
+---
+
+```{r results='hide', message=FALSE, warning=FALSE, echo=F}
+# 這些程式碼設定網頁的格式，並安裝、載入一些基本的套件，請大家不要去改動<br>
+rm(list=ls(all=T))
+knitr::opts_chunk$set(comment = NA)
+knitr::opts_knit$set(global.par = TRUE)
+par(cex=0.8)
+options(scipen=20, digits=5, width=80)
+if(!require(pacman)) install.packages("pacman")
+if(!require(vcd)) install.packages("vcd")
+```
+
+<p class="wwl">
+<span style="font-size:20px">`r "\U1F4A1"` 學習重點：離散機率的定義</span><br>
+&emsp; ■ `Binomial[n, p]`: 重複機率為`p`的實驗`n`次，其成功次數的分佈<br>
+&emsp; ■ `Geomtric[p]`: 重複機率為`p`的實驗，第一次成功前失敗次數的分佈<br>
+&emsp; ■ `NBinomial[n, p]`: 重複機率為`p`的實驗，第`n`次成功前失敗次數的分佈<br>
+&emsp; ■ `Poisson[`$\lambda$`]`: 期望值為$\lambda$的小機率事件發生次數的分佈<br>
+</p class="wwl">
+<hr>
+
+```{r}
+pacman::p_load(dplyr, vcd)
+```
+
+### 【1】Death by Horse Kick
+**資料**：Load built-in dataset into `HK`
+```{r}
+par(mfrow=c(1,1), cex=0.7)
+(HK = HorseKicks)
+```
+
+**檢定**：Does it comply to Poisson Distribution?
+```{r}
+fit = goodfit(HK, type = "poisson")
+summary(fit)
+```
+
+**係數**：What is the $\lambda$?
+```{r}
+fit$par
+```
+
+**應用**：What is the probability of `nDeath >= 2`?
+```{r}
+1 - ppois(1, fit$par$lambda)
+```
+<br>
+
+<p class="qiz">
+<span style="font-size:24px">`r "\U1F9D9"` 問題討論：</span><br>
+如果保險公司想要為國防部設計一個被馬踢死的保險：<br>
+&emsp; ■ 如果你只要只靠`HorseKick`這一份數據，每一軍團每年被馬踢死的次數超過5次的機率是多？<br>
+&emsp; ■ 如果我們將數據fit到理論分布上面，根據理論分佈，被馬踢死的次數超過5次的機率是多？<br>
+&emsp; ■ 以上哪一種做法才是比較合理的做法的？<br>
+</p class="qiz">
+
+What is the probability of `nDeath >= 5`?
+```{r}
+1 - ppois(4, fit$par$lambda)
+```
+<br><br><hr>
+
+### 【2】"May" in Federalist Papers
+**資料**：Load data into `Fed`
+```{r}
+(Fed = Federalist)
+```
+
+**檢定**：Does it comply to Poisson Distribution?
+```{r}
+fit <- goodfit(Fed, type = "poisson")
+summary(fit)
+```
+
+Does it comply to Negtive Binomial Distribution?
+```{r}
+fit = goodfit(Fed, type = "nbinomial")
+summary(fit)
+```
+
+**係數**：What are the parameters?
+```{r}
+fit$par
+```
+
+**分佈**：How does the distribution looks like?
+```{r fig.height=3, fig.width=7.5}
+par=c(margin=c(3,3,3,1),cex=0.7)
+dnbinom(0:10, fit$par$size, fit$par$prob) %>% barplot(names=0:10)
+```
+
+**機率**：How is the probability that `2 <= nMay <= 6`?
+```{r}
+pnbinom(6, fit$par$size, fit$par$prob) - pnbinom(1, fit$par$size, fit$par$prob)
+```
+<br><br><hr>
+
+
+<p class="wwl">
+<span style="font-size:20px">`r "\U1F4A1"` 學習重點：離散機率的應用步驟</span><br>
+&emsp; 1. 檢定分佈的種類<br>
+&emsp; 2. 估計分佈的參數<br>
+&emsp; 3. 推論事件的機率<br>
+</p class="wwl">
+
+<br><br>
+
+
+
+

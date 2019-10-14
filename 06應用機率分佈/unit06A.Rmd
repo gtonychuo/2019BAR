@@ -1,0 +1,119 @@
+---
+title: UNIT06A：離散機率理論驗證
+author: 中山大學管理學院 卓雍然
+date: "`r Sys.time()`"
+output: 
+  html_document:
+    highlight: pygments
+    theme: flatly
+    css: ../style.css
+---
+
+```{r results='hide', message=FALSE, warning=FALSE, echo=F}
+# 這些程式碼設定網頁的格式，並安裝、載入一些基本的套件，請大家不要去改動<br>
+rm(list=ls(all=T))
+knitr::opts_chunk$set(comment = NA)
+knitr::opts_knit$set(global.par = TRUE)
+par(cex=0.8)
+options(scipen=20, digits=5, width=80)
+if(!require(pacman)) install.packages("pacman")
+```
+<hr>
+
+```{r}
+pacman::p_load(dplyr)
+```
+
+### 【1】$n$很大時，二項分佈(Binominal Dist.)會趨近於常態(Normal)分佈
+
++ When $n$ is large, $Binom[n, p]$ approaches $Norm[\mu = n p, \sigma=\sqrt{n p (1-p)}]$ 
+
++ $X \sim Binom[n, p] \, \Rightarrow 
+\, Exp(X) = n \cdot p \, , \, Var(X) = n \cdot p \cdot (1-p)$
+
+```{r fig.height=2.4, fig.width=7.2}
+par(mfrow=c(1,1), mar=c(3,4,3,1), cex=0.7)
+n = 1000; p = 0.2
+rbinom(500000, n, p) %>% hist(breaks=80, freq=F, main="")
+curve(dnorm(x, mean=n*p, sd=sqrt(n*p*(1-p))), col='red', lwd=2, add=T)
+```
+
+```{r fig.height=2.4, fig.width=7.2}
+par(mfrow=c(1,2), cex=0.7)
+n = 10; p = 0.2
+rbinom(100000, n, p) %>% hist(freq=F, breaks=(0:n)-0.01)
+rnorm(100000, n*p, sqrt(n*p*(1-p))) %>% hist(freq=F)
+```
+
+<span style="font-size:24px">`r "\U1F4A1"`</span> :
+當期望值夠大的時候， 二項分佈會以期望值為中心向兩邊對稱的伸展，但是如果期望值不夠大的話，這個分佈的左尾就會受到擠壓，變成一個不對稱的分佈。<br><br>
+
+### 【2】$n \times p$不大時，二項分佈(Binominal Dist.)會趨近於Poisson分佈
+
++ When $n$ is large and $p$ is small, $Binom[n, p]$ approaches $Pois[\lambda = n p]$ 
+
+```{r fig.height=2.4, fig.width=7.2}
+par(mfrow=c(1,2), cex=0.7)
+rbinom(100000, 1000, 0.002) %>% table %>% barplot(main="Boinomial")
+rpois(100000, 2)  %>% table %>% barplot(main="Poisson")
+```
+
+### 【3】Poisson分佈的特性：(1)期望值等於標準差 & (2)期望值對加法有封閉性
+
++ $X \sim Pois[\lambda] \, \Rightarrow \, E(X) = Var(X) = \lambda$ 
+
+```{r}
+sapply(1:10, function(lambda) {
+  x = rpois(1000000, lambda)
+  c(mean(x), var(x))
+  })
+```
+
++ $X \sim Pois[\lambda_1], \, Y \sim Pois[\lambda_2] \, \Rightarrow \, X+Y \sim Pois[\lambda_1 + \lambda_2]$ 
+
+```{r fig.height=2.4, fig.width=7.2}
+par(mfrow=c(1,2), cex=0.7)
+(rpois(100000, 1) + rpois(100000, 2)) %>% table %>% barplot(main="Pois[1] + Pois[2]")
+rpois(100000, 3)  %>% table %>% barplot(main="Pois[3]")
+```
+
+```{r fig.height=2.4, fig.width=7.2}
+dpois(0:10, 3) + dpois(0:10, 4) - dpois(0:10, 7)
+```
+
+<br><br>
+
+### 【4】Geometric Dist.基本上是等待時間的分佈
+我們可以用二項分佈來模擬Geometric Dist.
+```{r fig.height=2.4, fig.width=8}
+par(mfrow=c(1,2), mar=c(3,3,3,1), cex=0.7)
+replicate(100000, which(rbinom(100, 1, .3) == 1)[1] - 1) %>% 
+  table %>% barplot(main="Binomial Simulation")
+rgeom(100000, 0.3) %>% table %>% barplot(main="Geometric")
+```
+
+<span style="font-size:24px">`r "\U1F5FF"`</span> :
+如果有一台機器每一天壞掉的機率是0.05，那麼在20天之內，它還能正常工作的機率分別是多少呢？<br>
+
+```{r}
+p = 0.05
+data.frame(end.of.day=1:20) %>% mutate(
+  brokenProb = pgeom(end.of.day-1, p),
+  workingProb = 1 - brokenProb
+  )
+```
+<br>
+
+### 【5】Geometric Dist.的期望值
+
++ $X \sim Geom[p] \, \Rightarrow \, E[X] = \frac{1}{p}-1$ <br>
+
+<span style="font-size:24px">`r "\U1F5FF"`</span> :
+如果平均而言每一個捐贈者有我需要的器官的機率是5%，那麼平均我要等多少個捐贈者才能等到我想要用的器官呢？<br>
+
+```{r}
+# 
+```
+
+<br><br><hr>
+

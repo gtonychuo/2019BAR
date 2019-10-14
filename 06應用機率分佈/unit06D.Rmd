@@ -1,0 +1,228 @@
+---
+title: UNIT06D：願付價格與最適定價
+author: 中山大學管理學院 卓雍然
+date: "`r Sys.time()`"
+output: 
+  html_document:
+    highlight: pygments
+    theme: flatly
+    css: ../style.css
+---
+
+```{r results='hide', message=FALSE, warning=FALSE, echo=F}
+# 這些程式碼設定網頁的格式，並安裝、載入一些基本的套件，請大家不要去改動<br>
+rm(list=ls(all=T))
+knitr::opts_chunk$set(comment = NA)
+knitr::opts_knit$set(global.par = TRUE)
+par(cex=0.8)
+options(scipen=20, digits=5, width=80)
+if(!require(pacman)) install.packages("pacman")
+if(!require(fitdistrplus)) install.packages("fitdistrplus")
+```
+
+<p class="wwl">
+<span style="font-size:24px">`r "\U1F4A1"` 學習重點：</span><br>
+&emsp; ■ 願付價格(WTP - Willingness to Pay)的分佈<br>
+&emsp; ■ 價量關係：供給曲線與價格反應含數<br>
+&emsp; ■ 使用`fitdistplus::fitdist()`適配(fit)標準機率分佈的模型<br>
+&emsp; ■ 使用`nls()`適配標準機率分佈的模型<br>
+&emsp; ■ 簡單的模擬(Simulation)與優化(Optimization)<br>
+&emsp; ■ 依據願付價格的分佈規劃定價策略<br>
+</p class="wwl"><hr>
+
+### 1. 願付價格(WTP)的實證分布
+把願付價格(WTP - Willingness to Pay)讀進資料框`A`
+```{r}
+p_load(dplyr, fitdistrplus)
+A = read.csv("wtpData.csv")
+```
+
+##### § 實證累計機率函數 `ecdf()` - Emperical CDF 
+直接呼叫`ecdf()`就可以建立實證累計機率函數<br>
+若願付大於價格(`WTP > p`)的消費者都會購買，則價格反應函數：`q(p) = 1 - W(p)`
+```{r fig.height=3, fig.width=6}
+cdf = ecdf(A$Wtp)       # 建立實證累計機率函數
+x = seq(35,65,0.2)      # 價格向量
+
+par(mar=c(4,4,2,1), cex=0.75)
+plot(x, cdf(x), type='l', col='gray')   # 實證累計機率函數
+lines(x, 1-cdf(x),col='blue', lty=2)    # 價格反應函數 q(p) = 1 - W(p)
+rug(jitter(A$Wtp),col='orange')         # 數值標記 *w/jitter*
+hist(A$Wtp, freq=F, add=T, col='lightyellow',border='pink')  # 直方圖
+```
+
+##### § 市場模擬與策略優化
+```{r fig.height=2.5, fig.width=6}
+cost = 35                       # 成本
+price = seq(35,65,0.5)          # 價格向量
+qty = 1 - cdf(price)            # 依據模型估計銷售量
+rev = qty * price               # 營收
+profit = qty * (price - cost)   # 獲利
+i = which.max(profit)           # 最高獲利的索引
+par(mar=c(4,4,2,1), cex=0.75)
+plot(price, profit, type='l',main=sprintf(
+  "Best Price=$%.1f, Profit=$%.1f/target", price[i], profit[i]))
+abline(v = price[i], col='red')
+```
+
+<p class="qiz"><span style="font-size:16px">`r "\U1F5FF"` </span>
+直接使用實證數據來做策略規劃，可能會有什麼問題呢？
+<br></p class="qiz"><br><hr>
+
+### 2. 使用實證數據建立模型
+
+##### § 將資料適配(fit)進理論機率分佈
+我們可以使用`fitdistplus::fitdist()`適配(fit)標準機率分佈的模型，假設WTP是呈常態分佈 ...
+```{r warning=F}
+Norm = fitdistrplus::fitdist(A$Wtp, "norm")
+summary(Norm)
+```
+
+<p class="wwl"><span style="font-size:16px">`r "\U1F4A1"` </span>
+其實任何理論機率分佈只要形狀類似都可以用，我們也可以試幾個不同的分佈，然後挑最好(依據Loglikelihood、AIC、BIC)的一個。
+<br></p class="wwl">
+
+比如像`norm-al`、`t`、`logis-tic` Distributions 都是鐘形對稱的分佈...
+```{r  warning=F}
+c(fitdist(A$Wtp, "norm")$loglik,
+  fitdist(A$Wtp, "logis")$loglik,
+  fitdist(A$Wtp, "t", start=list(df=58))$loglik)
+```
+<br>
+
+##### § 願付價格(WTP)的機率密度函數(pdf)
+$w(p) \sim  Norm[\mu=49.5, \sigma=4.4]$
+```{r fig.height=2.5, fig.width=6, warning=F}
+par(mar=c(4,4,2,1), cex=0.75)
+hist(A$Wtp, breaks=12, freq=F)
+
+Norm = fitdist(A$Wtp, "norm") # Fit into Normal Dist.
+curve(dnorm(x, Norm$esti['mean'], Norm$esti['sd']), 
+      add=T, col='red')
+
+Logis = fitdist(A$Wtp, "logis")  # Fit into Logistic Dist.
+curve(dlogis(x, Logis$esti['location'], Logis$esti['scale']), 
+      add=T, col='blue', lty=2)
+```
+
+##### § 市場模擬與策略優化
+然後我們可以用完全相同的方法透過市場模擬找出最適定價
+```{r fig.height=3, fig.width=6}
+cost = 35                       # 成本
+price = seq(35,65,0.5)          # 價格向量
+
+# 依 Normal Dist. 模型估計銷售量
+qty = 1 - pnorm(price, Norm$esti['mean'], Norm$esti['sd'])
+profit = qty * (price - cost)   # 獲利
+i = which.max(profit)           # 最高獲利的索引
+par(mar=c(4,4,2,1), cex=0.75)
+plot(price, profit, type='l', col='pink', lwd=2, ylim=c(0,9.5),
+     main="Market Simulation")
+abline(v = price[i], col='red')
+text(35,7.5,pos=4,col='red',sprintf(
+  "P*=%.1f, PI*=%.1f", price[i], profit[i]))
+
+# 依 Logistic Dist. 模型估計銷售量
+qty = 1 - plogis(price, Logis$esti['location'], Logis$esti['scale'])
+profit = qty * (price - cost)
+i = which.max(profit)
+lines(price, profit, col='darkcyan', lwd=2, lty=3)
+abline(v = price[i], col='darkcyan',lty=3)
+text(60,7,col='darkcyan',pos=3,sprintf(
+  "P*=%.1f, PI*=%.1f/target", price[i], profit[i]))
+
+```
+<br><hr>
+
+### 3. 價格反應曲線回推WTP的分佈
+實務上，我們很難估計每個消費者的WTP，行銷人員通常只能挑選一些有代表性的地區、先用以不同的價格來量測價量關係；假設我們以這個方式得到五個資料點，我們可以用它們畫出一條價格反應曲線：$q(p)$
+```{r fig.height=3, fig.width=4}
+qty = c(461,493,469,339,60)
+price = c(14,17,18,19,22)
+par(mar=c(4,4,2,1), cex=0.75)
+plot(price, qty, type='b', pch=20, ylim=c(0,550), xlim=c(13,24),
+     main="Price Response Function")
+```
+
+<br><p class="wwl"><span style="font-size:16px">`r "\U1F4A1"` </span>
+價格反應曲線其實就是 $w(p)$ 分佈的CDF的補數 $q(p) = 1-W(p)$ 
+<br></p class="wwl">
+
+<p class="qiz"><span style="font-size:16px">`r "\U1F5FF"` </span>
+那我們如何從價格反應曲線回推願付價格的分佈呢？
+<br></p class="qiz"><br>
+
+##### § 邏輯式分佈 Logistic Dist. 
+常態分佈CDF的數學式非常複雜，fit起來很困難，邏輯式分佈的CDF相對簡單，而且它和常態分佈的形狀很類似，所以行銷者通常用它來適配價格反應曲線
+
+**Logistic Distribution** :
+$$ pdf(x)=\frac{exp(-\frac{x-u}{s})}{s(1+exp(-\frac{x-u}{s}))^{2}}
+\;\;,\;\;\;\;\;
+1-cdf(x)=\frac{1}{1+exp(\frac{x-u}{s})}$$
+
+<br><p class="wwl"><span style="font-size:16px">`r "\U1F4A1"` </span>
+邏輯式分佈的CDF就是邏輯式函數
+<br></p class="wwl">
+
+
+```{r fig.width=4, fig.height=3}
+u=0; sd=1; s=sqrt(sd*3/(pi^2))   
+par(mar=c(4,4,3,1), cex=0.75)
+curve(dlogis(x, u, s), u-6*s, u+6*s, col='cyan', lwd=2,
+      main="Logistic Dist. (blue) vs Normal Dist. (red)\nPDF")
+curve(dnorm(x,u,sd), col='red', lty=2, add=T)  
+```
+<br>
+
+##### § 參數估計與轉換
+從價格反應曲線$q(p)$，我們可以觀察出相對應的常態分佈參數：$\mu \simeq 20, \sigma \simeq 1$；<br>
+然後我們可以利用**參數轉換公式**(Normal to Logistic Dist.)：
+
++ mean $u = \mu$ 
++ scale $s = \sqrt{\frac{3 \sigma^2}{\pi^2}}$
+
+估計邏輯式分佈的參數：
+```{r}
+u = 20
+s = sqrt(3 * 1^2 / pi^2)
+```
+
+##### § 模型適配
+然後我們可以用`stats::nls()`這個功能將價格反應曲線$q(p)$適配進邏輯式分佈的CDF
+```{r}
+mod = nls(qty ~ N/(1+exp((price - u)/s)), start=c(N=500, u=u, s=s) )
+coef(mod)
+```
+
+##### § 繪製模型
+取出模型係數，就可以畫出模型
+```{r fig.height=3, fig.width=4}
+N = coef(mod)[1]; u = coef(mod)[2]; s = coef(mod)[3]
+par(mar=c(4,4,3,1), cex=0.75)
+plot(price, qty, pch=20, ylim=c(0,550), xlim=c(13,24), main=sprintf(
+  "Logistic Price Response Function\nN=%.1f,  u=%.1f,  s=%.1f",
+  N, u, s))
+curve(N/(1+exp((x-u)/s)), col='blue', lwd=2, add=T)
+```
+
+##### § 策略模擬
+一旦知道邏輯式分佈的參數，我們就可以使用標準的機率分佈功能`plogis(x,u,s)`來做策略模擬 ...
+```{r fig.height=3, fig.width=4}
+cost = 10
+price = seq(10,25,0.5)
+qty = N * (1 - plogis(price, u, s))
+rev = qty * price
+profit = qty * (price - cost)
+i = which.max(profit)
+par(mar=c(4,4,2,1), cex=0.75)
+plot(price, profit, type='l', main=sprintf(
+  "Maximum Profit $%.1f  at  $%.1f", profit[i], price[i]))
+abline(v=price[i], col='red')
+```
+<br>
+
+<p class="wwl"><span style="font-size:20px">`r "\U1F4A1"`
+商務數據分析：結合商務、機率與程式的策略規劃過程
+</span><br></p class="wwl">
+
+<br><br>
