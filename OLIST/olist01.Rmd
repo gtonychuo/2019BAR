@@ -1,0 +1,212 @@
+---
+title: OLIST01：期中專案資料探索
+author: 中山大學管理學院 卓雍然
+date: "`r Sys.time()`"
+output: 
+  html_document:
+    highlight: pygments
+    theme: flatly
+    css: ../style.css
+---
+
+```{r results='hide', message=FALSE, warning=FALSE, echo=F}
+# 這些程式碼設定網頁的格式，並安裝、載入一些基本的套件，請大家不要去改動<br>
+rm(list=ls(all=T))
+knitr::opts_chunk$set(comment = NA)
+knitr::opts_knit$set(global.par = TRUE)
+par(cex=0.8)
+options(scipen=20, digits=5, width=80)
+if(!require(pacman)) install.packages("pacman")
+```
+<br>
+
+### 【A】讀進資料
+```{r results='hide', message=FALSE, warning=FALSE}
+pacman::p_load(dplyr, ggplot2, readr)
+```
+
+```{r}
+# R = read_csv("data/olist_order_reviews_dataset.csv")
+# L = read_csv("data/olist_marketing_qualified_leads_dataset.csv")
+# Q = read_csv("data/olist_closed_deals_dataset.csv")
+# I = read_csv("data/olist_order_items_dataset.csv")
+# C = read_csv("data/olist_customers_dataset.csv")
+# O = read_csv("data/olist_orders_dataset.csv")
+# P = read_csv("data/olist_products_dataset.csv")
+# S = read_csv("data/olist_sellers_dataset.csv")
+# TPC = read_csv("data/product_category_name_translation.csv")
+# 
+# attr(R, "spec") = NULL
+# attr(L, "spec") = NULL
+# attr(Q, "spec") = NULL
+# attr(I, "spec") = NULL
+# attr(C, "spec") = NULL
+# attr(O, "spec") = NULL
+# attr(P, "spec") = NULL
+# attr(S, "spec") = NULL
+# attr(TPC, "spec") = NULL
+# 
+# save(R,L,Q,I,C,O,P,S,TPC, file="data/olist.rdata")
+```
+
+<span style="font-size:24px">`r "\U1F4A1"`</span>
+讀完原始資料之後，先將資料壓縮起來，之後再從壓縮檔讀進會比較快、比較方便<br>
+
+```{r}
+rm(list=ls(all=T))
+load("data/olist.rdata")
+```
+<br><hr>
+
+### 【B】關聯式(Relational)資料與鍵值(Key)
+
+##### § 確認鍵值欄位 Unique Key  
+
+Sellers: `S$seller_id`
+```{r}
+n_distinct(S$seller_id) == nrow(S)
+```
+
+Products: `P$product_id`
+```{r}
+n_distinct(P$product_id) == nrow(P)
+```
+<br>
+
+##### § 多重鍵值 Multiple Key
+
+Reviews: `R$review_id`
+```{r}
+n_distinct(R$review_id) == nrow(R)
+```
+
+Reviews: `R$review_id` & `R$order_id`
+```{r}
+nrow(unique(R[, 1:2])) == nrow(R)
+```
+
+一則評論最多可能談到三個訂單
+```{r}
+table(R$review_id) %>% table
+```
+<br>
+
+##### § 外部鍵值 Foreign Key
+Order Items: `I$order_id` & `I$order_item_id`
+```{r}
+nrow(unique(I[, 1:2])) == nrow(I)
+```
+<br><hr>
+
+### 【C】檢視資料
+
+<span style="font-size:24px">`r "\U1F5FF"`</span>
+一筆訂單最多會有多少項目(`order_item_id`)呢？
+```{r}
+count(I, order_id, sort=T) 
+```
+
+<span style="font-size:24px">`r "\U1F5FF"`</span>
+一筆訂單最多會有多少個賣家(`seller_id`)呢？ 
+```{r}
+unique(I[, c(1,4)])$order_id %>% table %>% table
+```
+
+<span style="font-size:24px">`r "\U1F5FF"`</span>
+一筆訂單最多會包含多少種產品(`product_id`)呢？
+```{r}
+unique(I[, c(1,3)])$order_id %>% table %>% table
+```
+<br><hr>
+
+### 【D】製作欄位
+
+<span style="font-size:24px">`r "\U1F4A1"`</span>
+做分析之前我們一定要先決定分析對象(Unit of Analysis)<br>
+
+假如我們要對所有的賣家做分析，我們就要依`selller_id`做彙總； 先從訂單項目(`I`)做起 
+```{r}
+Z = I %>% group_by(seller_id) %>% summarise(
+  ItemsSold = n(),
+  Rev = sum(price),
+  noProd = n_distinct(product_id),
+  avgPrice = mean(price),
+  maxPrice = max(price),
+  minPrice = min(price),
+  avgFreight = mean(freight_value),
+  avgRevProd = Rev/noProd,
+  avgItemsProd = ItemsSold/noProd
+  )
+summary(Z)
+```
+
+計算每一個賣家的評等時要考慮：
+
++ 每一則評論可能有多於一個訂單而
++ 每一筆訂單可能包含多一個賣家
+
+這兩個問題。
+```{r}
+X = unique(I[,c(1,4)]) %>% left_join(R[,2:3]) %>% 
+  group_by(seller_id) %>% summarise(
+    noReview = n(),
+    avgScore = mean(review_score),
+    minScore = min(review_score),
+    maxScore = max(review_score)) 
+summary(X)
+```
+
+最後併入賣家的基本資料
+```{r}
+Z = Z %>% left_join(X) %>% left_join(S)
+is.na(Z) %>% colSums
+```
+
+做一個簡單的分析： 賣家的平均評等最高的20個省份是 ...
+```{r}
+tapply(Z$avgScore, Z$seller_state, mean) %>% sort %>% tail(20) 
+```
+<br><hr>
+
+### 【E】併入其它資料
+`Funnel`資料集裡面有更多賣家欄位，但是它的資料筆數不多
+```{r}
+Z1 = left_join(Q, L) %>% inner_join(Z)
+dim(Z1)
+```
+
+依賣家的行為做彙總
+```{r}
+behavior = group_by(Z1, lead_behaviour_profile) %>% summarise(
+  noSellers = n(),
+  totalRev = sum(Rev),
+  avgRev = mean(Rev),
+  avgReview = mean(noReview),
+  avgScore = mean(avgScore)
+  ) %>% arrange( desc(avgScore) )
+behavior
+```
+
+依產業別做彙總
+```{r}
+segment = group_by(Z1, business_segment) %>% summarise(
+  noSellers = n(),
+  totalRev = sum(Rev),
+  avgItemsSold = mean(ItemsSold),
+  avgPrice = totalRev/avgItemsSold,
+  avgRev = mean(Rev),
+  avgReview = mean(noReview),
+  avgScore = mean(avgScore)
+  ) %>% arrange( desc(totalRev) )
+segment
+```
+
+儲存資料物件
+```{r}
+save(Z, Z1, segment, file="data/Z.rdata")
+```
+<br><br><br>
+
+
+
+
