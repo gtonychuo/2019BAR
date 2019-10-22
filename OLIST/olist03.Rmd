@@ -1,0 +1,180 @@
+---
+title: OLIST03：熱圖與集群分析
+author: 中山大學管理學院 卓雍然
+date: "`r Sys.time()`"
+output: 
+  html_document:
+    highlight: pygments
+    theme: flatly
+    css: ../style.css
+---
+
+```{r results='hide', message=FALSE, warning=FALSE, echo=F}
+# This Chunk is for format setting, Do NOT Change the codes !
+rm(list=ls(all=T))
+knitr::opts_chunk$set(comment = NA)
+knitr::opts_knit$set(global.par = TRUE)
+par(cex=0.8)
+options(scipen=20, digits=5, width=80)
+if(!require(pacman)) install.packages("pacman")
+```
+<hr>
+
+## 研究議題：哪一些品類在哪些州賣的比較好？
+<br><br>
+
+```{r results='hide', message=FALSE, warning=FALSE}
+if(!require(morpheus)) install.packages('morpheus.R')
+pacman::p_load(dplyr, d3heatmap)
+cols = colorRamp(c('seagreen','lightyellow','red'))
+```
+
+```{r}
+load("data/olist.rdata")
+```
+<hr>
+
+### 【A】準備資料
+
+##### A1.顧客的地理分布(比率)
+```{r fig.height=2.5, fig.width=7}
+par(cex=0.8)
+table(C$customer_state) %>% sort(decreasing=T) %>% prop.table %>% barplot(las=2)
+```
+
+```{r}
+table(C$customer_state) %>% sort(dec=T) %>% prop.table %>% cumsum %>% 
+  round(2) %>% head(15)
+```
+超過80%的顧客都集中在前6州<br><br>
+
+##### A2. Pull `C$customer_state` into `I$state` via `O` 
+```{r}
+I = left_join(O[,1:2], C[,c(1,5)])[-2] %>%   # merge state into `O`
+  rename(state=customer_state) %>%           # use a shoter name
+   right_join(I)                             # then merge to `I`
+```
+<br>
+
+##### A3. Pull `TPC$product_category_name_english` into `I$category` via `O` 
+```{r}
+I = left_join(P, TPC)[,c(1,10)] %>%                     # merge name into `P``
+  rename(category = product_category_name_english) %>%  # use a shorter name
+  right_join(I) %>% data.frame                          # merge into `I`
+```
+<br>
+
+##### A4. Make a `state`*`category` Matrix  
+```{r}
+X = xtabs(price ~ state + category, I)    # sum(price) per cat., per st.
+X = X[order(-rowSums(X)),]                # arrange rows and ...
+X = X[,order(-colSums(X))]                # columns in decending order
+```
+<br>
+
+```{r}
+(rowSums(X)/sum(X)) %>% cumsum %>% {which(. < .95)} %>% last # 15
+```
+
+```{r}
+(colSums(X)/sum(X)) %>% cumsum %>% {which(. < .95)} %>% last # 32
+```
+
+```{r}
+X = as(X[1:15, 1:32], "matrix")        # keep 15 states & 32 categorie
+colnames(X) = substr(colnames(X),1,12) # use shorter names
+```
+
+<br><br><hr>
+
+### 【B】保持原有行列次序
+由於我們事先已經將`X`矩陣的行列次序依降冪排列，我們可以以原有的次序畫出熱圖
+```{r fig.height=3.2, fig.width=6.4}
+d3heatmap(X,F,F,col=cols)
+```
+但是這樣做的話，我們只能看到顧客最多的哪一州(`SP`)和賣得最好的幾個品類。
+<hr>
+
+### 【B】對數轉換 Log Transformation
+對數轉換可以降低極端值的影響
+```{r}
+range(X[X > 0])
+```
+
+因為`log(0) = -Inf`，所以取對數之前我們常需要先加進去一個數值，通常我們會選用矩陣中最小的數字
+```{r fig.height=2.5, fig.width=7}
+par(mfrow=c(1,2), cex=0.8)
+hist(X)
+hist(log(50+X,10)) # 商務應用裡面一般我們會用10底的對數
+```
+
+```{r fig.height=3.2, fig.width=6.4}
+d3heatmap(log(51+X,10),F,F,col=cols)
+```
+<br><hr>
+
+### 【C】行列集群 Clustering over Rows and Columns
+熱圖工具通常都會對矩陣的行與列分別作集群分析，在這個例子裡面，「購買行為相似的州」和「顧客地理分布相似的產品」會被檢在一起，以方便我們做觀察。
+```{r fig.height=4, fig.width=8}
+d3heatmap(log(51+X,10),col=cols)
+```
+<br><hr>
+
+### 【D】單方向基準化 1D-Normalization
+由於各州的顧客數量相差很多，州間並沒有相互比較的基礎，在熱圖裡面我們也很難觀察前三大州以外的地區；為了克服這個問題，我們可以用常態化的方式讓每一州的總營收都等於100，也就是說，我們讓矩陣之中的每一格都代表某一品類佔某一州總購買金額的百分比，這樣我們才能夠比較各州在品類購買比重上的異同。
+```{r fig.height=3.2, fig.width=8}
+d3heatmap(100*X/rowSums(X), Rowv=T, Colv=F, col=cols)
+```
+
++ 上圖中每一格的顏色代表某一品類佔某一州總購買金額的比例(越紅越大)，我們可以觀察到，雖然所有地區的消費都集中在最左邊的品類，各州對各品類的消費比例還是有些差異，所以我們可以根據這些差異對各州做分群。
++ 單方向常態化會有一個問題，我們在一個方向做常態化，就會破壞另一個方向數值之間的相對關係，所以我們對水平方向(州)做了常態化之後，垂直方向(品類間)的比較就變得沒有意義了，因此我們也不在品類間做分群。
++ 當然，我們也可以在品類這個方向做常態化，但是在這案例裏面，因為大部分的營收都集中在前幾大州，這樣做的用處不大。
+
+<br><hr>
+
+
+### 【E】雙向比例 Standardized Residuals
+前面說過，單方向的常態化有一個缺點，我們對一個方向(州)做常態化之後，另外一個方向(品類)的數值就失去了比較的基礎；如果我們想要在兩個方向上同時做分類和比較，我們可以把矩陣的「標準化殘差(standardized residuals)」畫成熱圖
+
+**標準化殘差 (standardized residuals):**<br>
+$r_{i,j} = \frac{x_{i,j} - E_{i.j}}{\sqrt{E_{i,j}}}$
+
+**表格期望值:**<br>
+$E_{i,j} = P_i \times P_j \times R, \quad P_i = R_i/R, \quad P_j = R_j/R$
+
++ $x_{i,j}$: Actual Revenue of Category-$j$ in State-$i$ 
++ $E_{i,j}$: Expected Revenue of Category-$j$ in State-$i$ 
++ $P_i$: Marginal Probability of State-$i$ 
++ $P_j$: Marginal Probability of Category-$j$ 
++ $R_i$: Total Expenditure in State-$i$ 
++ $R_j$: Total Revenue of Category-$j$ 
++ $R$: Grant Total Revenue 
+
+```{r fig.height=2.5}
+E = (rowSums(X) %o% colSums(X))/sum(X)   # cells' expected value 
+r = (X - E)/sqrt(E)    # standerdized residuals
+r[r > 100] = 100       # adjust the outlier
+hist(r)                # check distribution
+```
+
+```{r fig.height=4, fig.width=8}
+cols = colorRamp(c('#008000','#f8f8f8','#f8f8f8','#b32400'))
+d3heatmap(r,col=cols)
+```
+這個圖形可以從兩個方向做判讀：
+
++ 在水平方向，紅(綠)色代表該州在該品類的消費明顯的高(低)於期望值
++ 在垂直方向，紅(綠)色代表該品類在該州的營收明顯的高(低)於期望值
+
+<br>
+
+<p class="wwl">
+<span style="font-size:20px">`r "\U1F4A1"` 學習重點：</span><br>
+&emsp; ■ 熱圖不只是用顏色代表數值而已<br>
+&emsp; ■ 它可以對矩陣的欄與列做集群分析，分別將兩個類別變數之中相似的分類撿在一起<br>
+&emsp; ■ 對數轉換可以降低極端(離群))值的影響，讓熱圖的顏色更有區辨效果<br>
+&emsp; ■ 為了建立比較基礎，有時我們需要對矩陣的欄、列或整個矩陣做基準化(normalization)<br>
+</p class="wwl">
+
+<br><br><br><hr>
+

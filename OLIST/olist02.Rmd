@@ -1,0 +1,134 @@
+---
+title: OLIST02：多重軸度比較圖
+author: 中山大學管理學院 卓雍然
+date: "`r Sys.time()`"
+output: 
+  html_document:
+    highlight: pygments
+    theme: flatly
+    css: ../style.css
+---
+
+```{r results='hide', message=FALSE, warning=FALSE, echo=F}
+# 這些程式碼設定網頁的格式，並安裝、載入一些基本的套件，請大家不要去改動<br>
+rm(list=ls(all=T))
+knitr::opts_chunk$set(comment = NA)
+knitr::opts_knit$set(global.par = TRUE)
+par(cex=0.8)
+options(scipen=20, digits=5, width=80)
+if(!require(googleVis)) install.packages("googleVis")
+if(!require(pacman)) install.packages("pacman")
+```
+<hr>
+
+<br>
+```{r results='hide', message=FALSE, warning=FALSE}
+pacman::p_load(dplyr, ggplot2, readr, plotly, googleVis)
+```
+
+```{r}
+load("data/olist.rdata")
+load("data/Z.rdata")
+```
+<br><hr>
+
+### A. 基本繪圖套件 `ggplot`
+```{r}
+ggplot(segment, aes(x=log(avgItemsSold), y=avgPrice, col=avgScore)) +
+  geom_point(aes(size=sqrt(noSellers))) +
+  geom_text(aes(label=business_segment), size=3)
+```
+<br><hr>
+
+### B. 互動式繪圖套件 `ggplotly`
+```{r}
+g = ggplot(segment, aes(x=log(avgItemsSold), y=avgPrice, col=avgScore)) +
+  geom_point(aes(size=sqrt(noSellers))) +
+  geom_text(aes(label=business_segment), size=0.5)
+ggplotly(g)
+```
+<br><hr>
+
+### C. 互動式多軸度泡泡圖 `googleVis`
+
+##### 最簡單的做法
+```{r results='asis', tidy=FALSE, eval=F}
+# op = options(gvis.plot.tag='chart')
+segment$year = 2018
+gvisMotionChart(segment, "business_segment", "year") %>% plot
+```
+<br>
+
+##### 稍微複雜的案例
+Merge `TPC$product_category_name_english` into `P` as `P$category`
+```{r}
+P = left_join(P, TPC) %>% rename(category = product_category_name_english)
+```
+
+Merge `P$category into `I`
+```{r}
+I = left_join(I, P[,c(1,10)])
+```
+
+Summerise by `category`
+```{r}
+category = filter(I, !is.na(category)) %>% 
+  group_by(category) %>% summarise(
+    itemsSold = n(),
+    totalRev = sum(price),
+    avgPrice = mean(price),
+    noProduct = n_distinct(product_id),
+    noSeller = n_distinct(seller_id),
+    dummy = 2018
+  ) %>% arrange(desc(totalRev))
+```
+
+Top-20 categories
+```{r}
+top20 = category %>% top_n(20, totalRev)
+top20
+```
+
+**靜態多軸互動**
+```{r results='asis', tidy=FALSE, eval=F}
+gvisMotionChart(category, "category", "dummy") %>% plot
+```
+
+##### 時間面板資料 Panel Data
+併入時間資料
+```{r}
+X = left_join(O[, c(1,4)], R[,2:3]) %>%     # pull score & timestamp into 'O'
+  rename(
+    time = order_purchase_timestamp, 
+    score = review_score) %>% 
+  mutate(                                   # cut timestamp into quarter    
+    quarter = as.Date(cut(time, "quarter"))
+    ) %>%  
+  right_join(I) %>%                         # merge score & quarter into 'I'
+  filter(category %in% top20$category) %>%  # pick out the top20 categories
+  group_by(category, quarter) %>% 
+  summarise(                            # summarise by category & quarter
+    itemsSold = n(),                     
+    totalRev = sum(price),
+    avgPrice = mean(price),
+    avgScore = mean(score),
+    noProduct = n_distinct(product_id),
+    noSeller = n_distinct(seller_id)
+  ) %>% 
+  arrange(category, quarter)            # order by category & quarter
+```
+
+調整資料範圍、去除離群值
+```{r}
+X2 = X %>%  # adjustment before ploting
+  filter(quarter >= as.Date("2017-04-01")) %>% 
+  filter(!(category %in% c("computers", "office_furniture"))) %>% 
+  mutate(avgPrice = pmax(avgPrice, 3)) %>% as.data.frame
+```
+
+**動態多軸互動**
+```{r results='asis', tidy=FALSE, eval=F}
+gvisMotionChart(X2, "category", "quarter") %>% plot
+```
+
+<br><br><hr>

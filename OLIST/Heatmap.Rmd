@@ -1,0 +1,106 @@
+---
+title: "使用熱圖做資料探索"
+output: 
+  flexdashboard::flex_dashboard:
+    theme: default
+    css: JH.css
+    social: menu
+    source_code: embed 
+    logo: nsysu48.png
+    favicon: nsysu48.png
+    storyboard: true
+runtime: shiny
+---
+
+```{r}
+if(!require(devtools)) install.packages("devtools")
+if(!require(morpheus)) devtools::install_github('cmap/morpheus.R')
+pacman::p_load(dplyr, morpheus)
+load("data/olist.rdata")
+
+I = left_join(O[,1:2], C[,c(1,5)])[-2] %>%   # merge state into `O`
+  rename(state=customer_state) %>%           # use a shoter name
+   right_join(I)                             # then merge to `I`
+I = left_join(P, TPC)[,c(1,10)] %>%                     # merge name into `P``
+  rename(category = product_category_name_english) %>%  # use a shorter name
+  right_join(I)                              # merge into `I`
+
+X = xtabs(price ~ state + category, I)    # sum(price) per cat., per st.
+X = X[order(-rowSums(X)),]                # arrange rows and ...
+X = X[,order(-colSums(X))]                # columns in decending order
+X = as(X[1:15, 1:32], "matrix")           # keep 15 states & 32 categorie
+colnames(X) = substr(colnames(X),1,12)    # use shorter names
+
+Morph = function(x, row=T, col=T, dendro="both", ...) {morpheus(
+  x, Rowv=row, Colv=col, dendrogram=dendro, colorScheme=list(
+  scalingMode="fixed", values=c(min(x),(min(x)+max(x))/2,max(x)) 
+  ), ...) } 
+
+```
+
+### 【1.保持原有行列次序】由於事先已經將資料矩陣的行與列依降冪排列，我們可以直接以原有的次序畫出熱圖，但是這樣我們只能看到顧客最多的哪一州，和賣得最好的幾個品類。
+```{r}
+renderMorpheus({ Morph(X, F, F, "none")})
+```
+
+### 【2.對數轉換(Log_Trans.)】我們可以用對數轉換來處理高度傾斜的資料分布，為了避免 log(0) = -Inf，取對數之前常需要先加進去一個數值，通常我們會選用矩陣中最小的數字。
+```{r}
+renderMorpheus({ Morph(log(51+X,10),F,F,"none") })
+```
+
+### 【3.行列集群】熱圖工具通常都會對矩陣的行與列分別作集群分析，在這個例子裡面，購買行為相似的州和顧客地理位置相似的產品會被檢在一起，以方便我們做觀察。
+```{r}
+renderMorpheus({ Morph(log(51+X,10)) })
+```
+
+### 【4.單方向基準化】為了克服各州的顧客數量相差很多這個問題，我們用常態化的方式讓每一州的總營收都等於100，這樣我們才能夠比較各州在品類購買比重上的異同。
+```{r}
+renderMorpheus({ Morph(100*X/rowSums(X)) })
+```
+
+***
+
++ 左圖中每一格的顏色代表某一品類佔某一州總購買金額的比例(越紅越大)，我們可以觀察到，雖然所有地區的消費都集中在最左邊的品類，各州對各品類的消費比例還是有些差異，所以我們可以根據這些差異對各州做分群。
+
++ 單方向常態化會有一個問題，我們在一個方向做常態化，就會破壞另一個方向數值之間的相對關係，所以我們對水平方向(州)做了常態化之後，垂直方向(品類間)的比較就變得沒有意義了。
+
++ 我們還是可以在品類間做分群，這樣分群的基礎就變成是品類在各州總營收的占比，而不是營收本身。
+
++ 當然，我們也可以在選擇品類這個方向做常態化，但是在這案例裏面，因為大部分的營收都集中在前幾大州，這樣做的用處不大。
+
+
+### 【5.雙向基準化】如果我們想要在兩個方向上同時做分類和比較，我們可以把矩陣的標準化殘差(standardized residuals)畫成熱圖  {data-commentary-width=400}
+```{r}
+renderMorpheus({
+  m = (rowSums(X) %o% colSums(X))/sum(X)   # cells' expected value 
+  r = (X - m)/sqrt(m)    # standerdized residuals
+  r[r > 100] = 100       # adjust the outlier
+  Morph(r)
+  })
+```
+
+***
+這個圖形可以從兩個方向做判讀，
+
++ 在水平方向，紅(綠)色代表該州在該品類的消費明顯的高(低)於期望值
++ 在垂直方向，紅(綠)色代表該品類在該州的營收明顯的高(低)於期望值
+
+<br><hr>
+
+$\pi_{i,j} = p_i \times p_j \times r, \; p_i = r_i/r, \; p_j = r_j/r$
+
++ $\pi_{i,j}$ : Expected Revenue of Category-$j$ in State-$i$ 
++ $p_i$ : Marginal Probability of State-$i$ 
++ $p_j$ : Marginal Probability of Category-$j$ 
++ $r_i$ : Total Expenditure in State-$i$ 
++ $r_j$ : Total Revenue of Category-$j$ 
++ $r$ : Grant Total Revenue 
+
+
+
+
+
+
+
+
+
