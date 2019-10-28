@@ -1,0 +1,124 @@
+---
+title: OLIST04：時間面板與動態泡泡圖
+author: 中山大學管理學院 卓雍然
+date: "`r Sys.time()`"
+output: 
+  html_document:
+    highlight: pygments
+    theme: flatly
+    css: ../style.css
+---
+
+```{r results='hide', message=FALSE, warning=FALSE, echo=F}
+# 這些程式碼設定網頁的格式，並安裝、載入一些基本的套件，請大家不要去改動<br>
+rm(list=ls(all=T))
+knitr::opts_chunk$set(comment = NA)
+knitr::opts_knit$set(global.par = TRUE)
+par(cex=0.8)
+options(scipen=20, digits=5, width=88)
+if(!require(googleVis)) install.packages("googleVis")
+if(!require(pacman)) install.packages("pacman")
+```
+<hr>
+
+**載入套件、資料**
+```{r results='hide', message=FALSE, warning=FALSE}
+pacman::p_load(dplyr, googleVis)
+load("data/olist.rdata")
+load("data/Z.rdata")
+```
+
+### 1. 匯入欄位
+先將英文品類名稱、評論星等、送達日期等欄位匯入品項資料框(`I`)：
+
++ 將`TPC$product_category_name_english`匯入`P$category`
++ 品類(`I$category`)：將`P$category`匯入`I`
++ 星等(`I$review_score`)：將`R$review_score`匯入`I`
++ 日期(`I$date`)：將`O$order_delivered_customer_date`匯入`I$date`
++ 濾掉`NA`
++ 製作時間間隔欄位`month`
++ 選定時間範圍
+
+```{r message=F}
+A = left_join(P[,1:2], TPC) %>% 
+  transmute(product_id, category=product_category_name_english) %>% 
+  inner_join(I) %>% 
+  left_join(R[,2:3]) %>% 
+  left_join(O[,c(1,7)]) %>% rename(date = order_delivered_customer_date) %>% 
+  filter(!is.na(category) & !is.na(date)) %>% 
+  mutate(month = as.Date(cut(date, 'month'))) %>% 
+  filter(month >= as.Date('2017-02-01') & month <= as.Date('2018-08-01'))
+glimpse(A)
+```
+<br>
+
+### 2. 時間面板資料
+
+##### § 銷售金額最高的20個品類
+```{r}
+top20 = tapply(A$price, A$category, sum) %>% sort %>% tail(20) %>% names
+```
+
+##### § 製作時間面板
+```{r}
+X = A %>% 
+  filter(category %in% top20) %>%            # 選擇品類
+  group_by(category, month) %>% summarise(   # 製作時間面板
+    ItemSold = n(),
+    TotalProdRev = sum(price),
+    TotalFreightRev =  sum(freight_value), 
+    TotalRevenue = TotalProdRev + TotalFreightRev,
+    rProdRev = TotalProdRev / TotalRevenue,
+    rFreightRev = TotalFreightRev / TotalRevenue,
+    AvgPrice = mean(price),
+    AvgFreight = mean(freight_value),
+    AvgScore = mean(review_score),
+    nProduct = n_distinct(product_id),
+    nSeller = n_distinct(seller_id),
+    rProdSeller = nProduct/nSeller,
+    rItemProd = ItemSold/nProduct,
+    rRevProd = TotalProdRev/nProduct,
+    rRevSeller = TotalRevenue/nSeller
+    )%>% ungroup 
+```
+
+
+##### § 檢查面板資料
+
+**第一個面板**
+```{r eval=F}
+X[X$month == min(X$month),] %>% View
+```
+
+**項目的期數**
+```{r}
+table(X$category)
+```
+`computers`缺了5期的的資料
+
+**切齊面板資料**
+```{r}
+X = filter(X, category != "computers")
+table(X$category)
+```
+<br>
+
+### 3. 動態泡泡圖
+```{r results='asis', tidy=FALSE, eval=F}
+# op = options(gvis.plot.tag='chart')
+gvisMotionChart(
+  X,                                               # 時間面板資料框
+  'category', 'month',                             # 項目、時間欄位
+  'ItemSold','AvgPrice','AvgScore','TotalRevenue'  # X、Y、顏色、大小欄位 
+  ) %>% plot
+```
+
+<p class="wwl">
+<span style="font-size:20px">`r "\U1F4A1"` 學習重點：</span><br>
+&emsp; ■ PC端不能直接Kint動態泡泡圖<br>
+&emsp; ■ 但我們還是可以從RStudio裡面直接執行`plot(gvisMotionChart())`<br>
+&emsp; ■ 執行結果會送到瀏覽器<br>
+&emsp; ■ 妳需要打開瀏覽器的Flash選項才看得到動態泡泡圖<br>
+</p class="wwl">
+
+<br><br><hr>
