@@ -1,0 +1,102 @@
+---
+title: UNIT08B：多元尺度分析(MDS)與品牌知覺圖
+author: 中山大學管理學院 卓雍然
+date: "`r Sys.time()`"
+output: 
+  html_document:
+    highlight: pygments
+    theme: flatly
+    css: ../style.css
+---
+
+```{r results='hide', message=FALSE, warning=FALSE, echo=F}
+# This Chunk is for format setting, Do NOT Change the codes!
+rm(list=ls(all=T))
+knitr::opts_chunk$set(comment = NA)
+knitr::opts_knit$set(global.par = TRUE)
+par(cex=0.8)
+options(scipen=20, digits=5, width=80)
+if(!require(pacman)) install.packages("pacman")
+```
+<hr>
+
+<p class="wwl">
+<span style="font-size:24px">`r "\U1F4A1"` 學習重點：</span><br>
+&emsp; ■ 多元尺度分析(MDS, Multi-Dimension Scaling)<br>
+&emsp; &emsp; § 縮減尺度工具<br>
+&emsp; &emsp; § 盡量維持持高、低尺度之中各資料點間的距離<br>
+&emsp; ■ 品牌知覺圖(Perception Map)：呈現在消費者心中<br>
+&emsp; &emsp; § 品牌與品牌間的關係<br>
+&emsp; &emsp; § 屬性與屬性間的關係<br>
+&emsp; &emsp; § 品牌與屬性之間的關係<br>
+</p class="wwl">
+
+<br>
+```{r results='hide', message=FALSE, warning=FALSE}
+pacman::p_load(dplyr, FactoMineR, factoextra)
+```
+
+##### § Reading and Preapring Data
+```{r}
+cafe = read.csv("data/cafe2.csv")
+row.names(cafe) = cafe[,1]
+cafe = cafe[,-1]
+cafe
+```
+這裡我們有5個品牌(資料點)、8種屬性(尺度)，儘管資料點數不多，我們還是很難同時想像八個尺度
+<br>
+
+### 1. Multi-Dimensional Scaling (多元尺度分析)
+
++ Calculate the distance matrix by `dist()`
++ Call `cmdscale()` for MDS analysis.
+
+```{r}
+d = dist(cafe, method = "euclidean")
+fit <- cmdscale(d, eig = TRUE, k = 2)
+```
+
++ Then plot the brands on the space of reduced dimensions. 
+
+```{r fig.height=6, fig.width=5.5}
+brands = rownames(cafe); percepts=colnames(cafe)
+cafe$x = fit$points[, 1]
+cafe$y = fit$points[, 2]
+plot(cafe$x, cafe$y, pch = 19, xlim=c(-1.5,1.5), ylim=c(-1,1.5))
+bpos = c(3, 3, 4, 4, 3)
+text(cafe$x, cafe$y, pos=bpos, offset=0.5, labels = brands)
+```
+
+Perceived differennce among the brands are represented as the corresponding distances on the map.
+<br>
+
+### 2. Percpetual Map (知覺圖)
+Furthermore, we can also plot the unit vectors for the original dimension on the map.
+```{r fig.height=6, fig.width=5.5}
+plot(cafe$x, cafe$y, pch = 19, xlim=c(-3.5,2), ylim=c(-2.2,2.5))
+for(i in 1:length(percepts)) {
+  m = lm(sprintf("%s ~ x + y",percepts[i]), data=cafe)
+  c = 1/m$coef[2]; d = 1/m$coef[3]
+  cd2 = c*c + d*d
+  px = (c * d * d)/cd2
+  py = (c * c * d)/cd2
+  arrows(0,0,px,py,col="pink",length=0)
+  text(px, py, col="red", cex=0.75, labels = percepts[i])
+}
+text(cafe$x, cafe$y, pos=bpos, offset=0.5, cex=0.75, labels = brands)
+```
+
+### 3. 主成分分析 PCA
+```{r fig.width=6, fig.height=5}
+PCA(cafe[1:8], graph=F) %>% fviz_pca_biplot(
+  repel=T, col.var="red", col.ind="blue", 
+  labelsize=3, pointshape=16, pointsize=3)
+```
+<br><hr>
+
+<p class="qiz">
+<span style="font-size:24px">`r "\U1F5FF"` 問題討論：</span><br>
+&emsp; ■ 請你比較「主成分分析(PCA)」和「多元尺度分析(MDS)」的異同？<br>
+&emsp; ■ 請你從品牌知覺圖之中觀察到哪一些現象？<br>
+</p class="qiz"><br>
+

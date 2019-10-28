@@ -1,0 +1,197 @@
+---
+title: UNIT08A：尺度縮減 PCA
+author: 中山大學管理學院 卓雍然
+date: "`r Sys.time()`"
+output: 
+  html_document:
+    highlight: pygments
+    theme: flatly
+    css: ../style.css
+---
+
+```{r results='hide', message=FALSE, warning=FALSE, echo=F}
+# This Chunk is for format setting, Do NOT Change the codes!
+rm(list=ls(all=T))
+knitr::opts_chunk$set(comment = NA)
+knitr::opts_knit$set(global.par = TRUE)
+par(cex=0.8)
+options(scipen=20, digits=5, width=80)
+if(!require(pacman)) install.packages("pacman")
+```
+<hr>
+
+<p class="wwl">
+<span style="font-size:20px">`r "\U1F4A1"` 學習重點：</span><br>
+&emsp; ■ 尺度縮減的基本觀念<br>
+&emsp; &emsp; § 資訊量與變異數 Variance as Information<br>
+&emsp; &emsp; § 變異數(正交)分解 Variance Decomposition<br>
+&emsp; &emsp; § 主成分 Principle Components?<br>
+&emsp; &emsp; § 特徵值 Eigenvalue & Variance Decomposition<br>
+&emsp; ■ 主成分分析工具：Principle Component Analysis Tool (`FactoMiner`)<br>
+&emsp; &emsp; § 資料點與尺度的座標 Coordination<br>
+&emsp; &emsp; § 資料點與尺度的代表性 CO2, Level of Representation<br>
+&emsp; ■ 主成分分析的視覺化：PCA Visualization<br>
+&emsp; &emsp; § 視覺化工具 Visualization Tool (`factorextra`)<br>
+&emsp; ■ 主成分分析的應用<br>
+&emsp; ■ 主成分分析和集群分析的綜合應用<br>
+</p class="wwl">
+
+<br>
+```{r results='hide', message=FALSE, warning=FALSE}
+pacman::p_load(dplyr, FactoMineR, factoextra)
+```
+
+##### § 十項運動資料集
+
+```{r}
+D = decathlon2
+head(D)
+```
+
+<br><hr>
+
+### 【A】主成分分析
+
++ 我們使用`FactoMineR`套件的加強功能`PCA()`，通常用預設參數就行
++ 做尺度縮減之前，PCA()會(預設)先幫我們做常態化
++ 做完分析，它(預設)會把所有的「個體(資料點)」和「變數(尺度)」投射到前兩個「主成分」的平面上
+
+```{r}
+pca = PCA(D[,1:10])
+```
+
+
+##### § `pca`物件的內容
+
++ `PCA()`會回傳一個`PCA`物件，我們叫它`pca`
++ `pca`是一個List(序列)，它裡面有很多子物件
+
+```{r}
+pca
+```
+
+<br>
+
+##### § `pca$eig`: 各「主成分」的「資訊含量」
+
++ 10個變數的PCA會產生10個主成分(互相正交的尺度)
++ 特徵值代表每一個主成分所攜帶的資訊量(變異量)
++ 第一個主成分的特徵值最大，依次遞減
++ 所有的特徵值加起來正好會等於變數的個數
+
+```{r}
+get_eigenvalue(pca)
+```
+
+<p class="wwl">
+<span style="font-size:24px">`r "\U1F4A1"` 學習重點：</span><br>
+**主成分分析的基本觀念：**<br>
+&emsp; § 主成分分析：在變數空間之中找尋一套**正交**的尺度(**主成分**)<br>
+&emsp; § 變異數(Variance)可以代表變數的資訊<br>
+&emsp; § $Var(A+B) = Var(A) + Var(B) + 2 Cov(A,B)$<br>
+&emsp; § 原始尺度之間通常存在相關性($Cov(A,B)=0$)，所以它們所攜帶的資訊會有部分重疊<br>
+&emsp; § 主成分之間沒有相關性($Cov(A,B)=0$)，所以它們所攜帶的資訊不會重疊<br>
+&emsp; § 前兩個主成分所構成的平面，就是資訊含量最大的平面<br>
+</p class="wwl"><br><hr>
+
+### 【B】縮減空間中的變數 (Variables)
+
+##### § `pca$var$coord`: 各變數在各尺度的座標
+```{r}
+pca$var$coord
+```
+
+##### § `pca$var$coord`: 各變數在各尺度呈現的資訊比率
+```{r}
+pca$var$cos2
+```
+
+##### § 將變數投射到主成分空間
+```{r}
+fviz_pca_var(pca)
+```
+
+<br><hr>
+
+### 【C】縮減空間中的個體 (Individuals)
+
+##### § `pca$ind$coord`: 個體在各尺度的座標
+```{r}
+pca$ind$coord
+```
+
+##### § `pca$ind$coord`: 個體在各尺度呈現的資訊比率
+```{r}
+pca$ind$cos2
+```
+
+##### § 將變數投射到主成分空間
+```{r}
+fviz_pca_ind(pca)
+```
+
+<br><hr>
+
+### 【D】同時投射個體和變數 (Bi-ploy)
+
+##### § 將個體和變數投射到主成分空間
+```{r}
+fviz_pca_biplot(
+  pca, pointsize="cos2", repel=T, labelsize=3,
+  col.var="red", col.ind="#E7B800", alpha.ind=0.3)
+```
+
+
+### 【E】將個體分群
+
+##### § Kmeans集群分析
+```{r}
+set.seed(444)
+kmg = kmeans(scale(D[,1:10]), 5)$cluster %>% factor
+table(kmg)
+```
+
+<p class="wwl">
+<span style="font-size:20px">`r "\U1F4A1"` 學習重點：</span><br>
+&emsp; ■ 階層式集群分析 Hierarchical Clustering<br>
+&emsp; &emsp; § 需要先做距離矩陣<br>
+&emsp; &emsp; § 資料點數不能太大<br>
+&emsp; &emsp; § 不需要先設定群數<br>
+&emsp; &emsp; § 每一次的分尋結果都一樣<br>
+&emsp; ■ KMeans集群分析 KMeans Clustering<br>
+&emsp; &emsp; § 不需要先做距離矩陣<br>
+&emsp; &emsp; § 資料點數比較不受限制<br>
+&emsp; &emsp; § 需要先設定群數<br>
+&emsp; &emsp; § 每一次的分尋結果都可能不一樣<br>
+</p class="wwl"><br>
+
+##### § 將個體和變數投射到主成分空間
+```{r fig.width=7.5, fig.height=5}
+fviz_pca_biplot(
+  pca, repel=T, col.var="black", labelsize=3,
+  col.ind=kmg, alpha.ind=0.6, pointshape=16, 
+  addEllipses = T, ellipse.level = 0.65, 
+  mean.point = FALSE) + 
+  theme(legend.position = "none")
+```
+
+##### § 主成分空間的選擇
+```{r fig.width=7.5, fig.height=5}
+fviz_pca_biplot(
+  pca, axes=c(1,3),
+  repel=T, col.var="black", labelsize=3,
+  col.ind=kmg, alpha.ind=0.6, pointshape=16, 
+  addEllipses = T, ellipse.level = 0.65, 
+  mean.point = FALSE) + 
+  theme(legend.position = "none")
+```
+
+
+<br>
+<span style="font-size:20px">`r "\U1F4A1"`</span>
+`FactoMineR`和`factoextra`這兩個套件非常的強大，除了連續變數之外，它們也可以做類別變數、甚至於混合變數的主成分分析；他們的繪圖功能也非常靈活，除了投射本身的變數和個體之外，區隔變數以外的連續或類別變數，或者是不在原資料之中的新資料點，都可以投射到主成分空間裡面。
+
+<br><br><br><hr>
+
+
+
