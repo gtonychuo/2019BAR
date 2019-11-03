@@ -1,0 +1,198 @@
+---
+title: OLIST06：時空間的視覺化工具
+author: 中山大學管理學院 卓雍然
+date: "`r Sys.time()`"
+output: 
+  html_document:
+    highlight: pygments
+    theme: flatly
+    css: ../style.css
+---
+
+```{r results='hide', message=FALSE, warning=FALSE, echo=F}
+# This Chunk is for format setting, Do NOT Change the codes !
+rm(list=ls(all=T))
+knitr::opts_chunk$set(comment = NA)
+knitr::opts_knit$set(global.par = TRUE)
+par(cex=0.8)
+options(scipen=20, digits=5, width=80)
+if(!require(pacman)) install.packages("pacman")
+```
+<hr>
+
+### 研究議題：各州之間的物流
+<br><br>
+
+**載入套件與圖資 **
+```{r results='hide', message=FALSE, warning=FALSE}
+pacman::p_load(
+  d3heatmap,rgeos,sp,stringr,readxl,dplyr,
+  leaflet,leaflet.minicharts)
+load("data/olist.rdata")
+
+# Brazil Geo-Spatial Data
+B <- read_excel("data/BR.xlsx")
+B$GDP = B$GDP %>% 
+  str_remove(",") %>% str_extract("^[0-9\\.]+") %>% as.numeric
+
+G = readRDS("data/gadm36_BRA_1_sp.rds")
+B = cbind(B, sapply(1:27, function(i) gCentroid(G[i,])@coords) %>% t)
+names(B)[11:12] = c('lng','lat')
+B$lat[24] = B$lat[24] - 1
+B$lng[24] = B$lng[24] + 1
+
+# leaflet world map url
+tilesURL <- "http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+
+```
+
+**匯入顧客與廠商的位置**
+```{r message=F}
+O2 = left_join(I[,c(1,4)], S[,c(1,4)]) %>% 
+  right_join(O) %>% 
+  left_join(C[,c(1,5)]) %>% 
+  rename(from=seller_state, to=customer_state)
+```
+<br><hr>
+
+### 各州的貨物統計
+
+**計算各州的自用、輸出、輸入數量**
+```{r message=F}
+df = sapply(unique(O2$to), function(s) c(
+  Intra = sum(s == O2$from & s == O2$to, na.rm=T),
+  Import = sum(s != O2$from & s == O2$to, na.rm=T),
+  Export = sum(s == O2$from & s != O2$to, na.rm=T)
+  )) %>% t %>% data.frame %>% 
+  mutate(
+    total = Intra + Import + Export,
+    stCode = unique(O2$to)) %>% 
+  left_join(B[,c(2,11,12)]) %>% data.frame
+```
+
+**以圓餅圖比較各州的物流型態**
+```{r}
+leaflet(width = "100%", height = "800px") %>%  addTiles(tilesURL) %>% 
+  addPolylines(data=G, color="darkcyan", weight=1, fillOpacity=0) %>% 
+  addMinicharts(
+    df$lng, df$lat, type = "pie",
+    chartdata = df[,c("Intra","Import","Export")], 
+    colorPalette = c("gold", "red", "seagreen"), 
+    width = 80 * sqrt(df$total) / sqrt(max(df$total))
+    )
+```
+<br><hr>
+
+### 東南10省與聖保羅(SP)
+
+```{r}
+s10 = c("MG","PR","RJ","RS","SC","SP","DF","GO","ES","MS")
+i10 = which(str_remove(G$HASC_1,"BR\\.") %in% s10)
+df10 = subset(df, stCode %in% s10)
+```
+
+```{r}
+mx = xtabs(~from+to, subset(O2, from%in%s10 & to%in%s10)); mx
+```
+
+**東南10省的物流佔全國的86%**
+```{r}
+sum(mx)/nrow(O2)
+```
+
+**聖保羅(SP)的物流佔全國的81%**
+```{r}
+mean(O2$from=="SP" | O2$to=="SP", na.rm=T)
+```
+<br><hr>
+
+### 聖保羅的物流
+
+```{r}
+df10 = df10 %>% mutate(
+  lngSP= B$lng[B$stCode == "SP"],
+  latSP = B$lat[B$stCode == "SP"]) %>% 
+  arrange(stCode)
+df10$fromSP = mx["SP",]
+df10$toSP = mx[,"SP"]
+```
+
+**聖保羅的輸出**
+```{r}
+leaflet(width = "100%", height = "800px") %>% addTiles(tilesURL) %>% 
+  addPolylines(data=G[i10,], color="gray", weight=2, fillOpacity=0) %>% 
+  addFlows(
+    df10$lngSP, df10$latSP, df10$lng, df10$lat, flow=df10$fromSP,
+    color = "green", opacity = 0.4, maxThickness = 40) %>% 
+  addMinicharts(
+    df10$lng, df10$lat, type = "pie",
+    chartdata = df10[,c("Intra","Import","Export")], 
+    colorPalette = c("gold", "red", "seagreen"), 
+    width = 80 * sqrt(df10$total) / sqrt(max(df10$total))
+    )
+```
+
+**聖保羅的輸入**
+```{r}
+leaflet(width = "100%", height = "800px") %>% addTiles(tilesURL) %>% 
+  addPolylines(data=G[i10,], color="gray", weight=2, fillOpacity=0) %>% 
+  addFlows(
+    df10$lng, df10$lat, df10$lngSP, df10$latSP, flow=df10$toSP,
+    color = "red", opacity = 0.3, maxThickness = 60) %>% 
+  addMinicharts(
+    df10$lng, df10$lat, type = "pie",
+    chartdata = df10[,c("Intra","Import","Export")], 
+    colorPalette = c("gold", "red", "seagreen"), 
+    width = 80 * sqrt(df10$total) / sqrt(max(df10$total))
+    )
+```
+<br><hr>
+
+### 時間面板與時空間整合
+
+**選擇時間範圍**
+```{r}
+O2$month = format(O2$order_delivered_customer_date, "%Y-%m")
+table(O2$month)[6:23]
+```
+
+**製作時間面板**
+```{r}
+dx = do.call(rbind, lapply(names(table(O2$month))[6:23], function(m) {
+  df = df10 
+  or = subset(O2, month == m & (from%in%s10 | to%in%s10) )
+  or = or %>% mutate_at(vars(from,to), factor, levels=sort(s10))
+  mx = xtabs(~from+to, or)
+  df$Intra = diag(mx)
+  df$Import = colSums(mx) - diag(mx)
+  df$Export = rowSums(mx) - diag(mx)
+  df$total = df$Intra + df$Import + df$Export
+  df$fromSP = mx["SP",]
+  df$toSP = mx[,"SP"]
+  df$month = m
+  df
+  }))
+```
+
+**聖保羅的輸出，2017-03~2018-08**
+```{r}
+leaflet(width = "100%", height = "800px") %>% addTiles(tilesURL) %>% 
+  addPolylines(data=G[i10,], color="gray", weight=2, fillOpacity=0) %>% 
+  addFlows(
+    dx$lngSP, dx$latSP, dx$lng, dx$lat, flow=dx$fromSP,
+    color = "green", opacity = 0.4, maxThickness = 60, time = dx$month) %>% 
+  addMinicharts(
+    dx$lng, dx$lat, type = "pie", time = dx$month,
+    chartdata = dx[,c("Intra","Import","Export")],
+    colorPalette = c("gold", "red", "seagreen"),
+    width = 100 * sqrt(dx$total) / sqrt(max(dx$total))
+    )
+```
+
+
+
+
+
+<br><br><br><hr>
+
+
