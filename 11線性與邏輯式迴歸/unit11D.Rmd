@@ -1,5 +1,5 @@
 ---
-title: UNIT11D：類別模型、預測機率與商業決策 
+title: UNIT11D：回歸的係數判讀 Regression Coeffieient 
 subtitle: 案例一：預防性醫療
 author: 中山大學管理學院 卓雍然
 date: "`r Sys.time()`"

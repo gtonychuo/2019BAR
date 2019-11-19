@@ -1,5 +1,5 @@
 ---
-title: UNIT11C：邏輯式性回歸 Logistic Regression
+title: UNIT11C：邏輯式回歸 Logistic Regression
 author: 中山大學管理學院 卓雍然
 date: "`r Sys.time()`"
 output: 
