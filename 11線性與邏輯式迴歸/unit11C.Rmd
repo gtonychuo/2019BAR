@@ -65,7 +65,10 @@ c(logit=logit, odd=odd, prob=prob)
 What if `x1=2, x2=3`?
 
 ```{r}
-#
+logit = sum(b * c(1, 2, 3))
+odd = exp(logit)
+prob = odd/(1+odd)
+c(logit=logit, odd=odd, prob=prob)
 ```
 <br>
 
@@ -92,8 +95,7 @@ data.frame(prob = p, logit)
 then mark the contours of proabilities into the scatter plot 
 ```{r  fig.width=3.6, fig.height=3.6}
 par(cex=0.8, mar=c(4,4,1,1))
-plot(D$x1, D$x2, col=2+D$y,
-     pch=20, cex=1.3, xlab='X1', ylab='X2')
+plot(D$x1, D$x2, col=2+D$y,pch=20, cex=1.3, xlab='X1', ylab='X2')
 for(f in logit) {
   abline((f-b[1])/b[3], -b[2]/b[3], col=ifelse(f==0,'blue','cyan')) }
 ```
