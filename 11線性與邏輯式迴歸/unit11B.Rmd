@@ -45,7 +45,7 @@ TS = subset(D, Year > 2006)   # Test Data
 
 + 理論模型： $y_i = \beta_0 + \beta_1 x_{1,i} + \beta_2 x_{2,i} + ... + \epsilon_i$
 
-+ 實證模型：$\hat{y}_i = b_0 + b_1 x_{1,i} + b_2 x_{2,i} + ... + e_i$
++ 實證模型：$y_i = \hat{y}_i + e_i \:\: ; \:\: \hat{y}_i = f(x)= b_0 + b_1 x_{1,i} + b_2 x_{2,i} + ...$
 
 + OLS (Ordinary Least Square): 算出一組使$\Sigma_i e_i^2$最小的$b_i$
 

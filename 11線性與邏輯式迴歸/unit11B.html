@@ -440,7 +440,7 @@ summary {
 
 <h1 class="title toc-ignore">UNIT11B：多元線性回歸 Multiple Linear Regression</h1>
 <h4 class="author">中山大學管理學院 卓雍然</h4>
-<h4 class="date">2019-11-20 00:07:21</h4>
+<h4 class="date">2019-11-21 00:52:14</h4>
 
 </div>
 
@@ -471,7 +471,7 @@ summary {
 <h5>§ A2 建立模型</h5>
 <ul>
 <li><p>理論模型： <span class="math inline">\(y_i = \beta_0 + \beta_1 x_{1,i} + \beta_2 x_{2,i} + ... + \epsilon_i\)</span></p></li>
-<li><p>實證模型：<span class="math inline">\(\hat{y}_i = b_0 + b_1 x_{1,i} + b_2 x_{2,i} + ... + e_i\)</span></p></li>
+<li><p>實證模型：<span class="math inline">\(y_i = \hat{y}_i + e_i \:\: ; \:\: \hat{y}_i = f(x)= b_0 + b_1 x_{1,i} + b_2 x_{2,i} + ...\)</span></p></li>
 <li><p>OLS (Ordinary Least Square): 算出一組使<span class="math inline">\(\Sigma_i e_i^2\)</span>最小的<span class="math inline">\(b_i\)</span></p></li>
 </ul>
 <div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb5-1" title="1">m1 =<span class="st"> </span><span class="kw">lm</span>(Temp<span class="op">~</span>MEI<span class="op">+</span>CO2<span class="op">+</span>CH4<span class="op">+</span>N2O<span class="op">+</span>CFC<span class="fl">.11</span><span class="op">+</span>CFC<span class="fl">.12</span><span class="op">+</span>TSI<span class="op">+</span>Aerosols,TR)</a></code></pre></div>
