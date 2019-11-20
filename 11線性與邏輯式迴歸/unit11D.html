@@ -441,7 +441,7 @@ summary {
 <h1 class="title toc-ignore">UNIT11D：回歸的係數判讀 Regression Coeffieient</h1>
 <h3 class="subtitle">案例一：預防性醫療</h3>
 <h4 class="author">中山大學管理學院 卓雍然</h4>
-<h4 class="date">2019-11-20 00:40:42</h4>
+<h4 class="date">2019-11-21 00:53:46</h4>
 
 </div>
 
@@ -488,56 +488,60 @@ summary {
 <ul>
 <li>基礎機率</li>
 </ul>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb4-1" title="1">base =<span class="st"> </span><span class="kw">table</span>(D<span class="op">$</span>PoorCare) <span class="co"># the base probability</span></a></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb4-1" title="1">base =<span class="st"> </span><span class="kw">table</span>(D<span class="op">$</span>PoorCare) <span class="co"># the base probability</span></a>
+<a class="sourceLine" id="cb4-2" title="2">base <span class="op">%&gt;%</span><span class="st"> </span>prop.table</a></code></pre></div>
+<pre><code>
+      0       1 
+0.74809 0.25191 </code></pre>
 <ul>
 <li>分割資料 (分割向量)</li>
 </ul>
-<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb5-1" title="1"><span class="kw">set.seed</span>(<span class="dv">88</span>)</a>
-<a class="sourceLine" id="cb5-2" title="2">split =<span class="st"> </span><span class="kw">sample.split</span>(D<span class="op">$</span>PoorCare, <span class="dt">SplitRatio =</span> <span class="fl">0.75</span>)  <span class="co"># split vector</span></a>
-<a class="sourceLine" id="cb5-3" title="3"><span class="kw">table</span>(split) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">prop.table</span>()</a></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb6-1" title="1"><span class="kw">set.seed</span>(<span class="dv">88</span>)</a>
+<a class="sourceLine" id="cb6-2" title="2">split =<span class="st"> </span><span class="kw">sample.split</span>(D<span class="op">$</span>PoorCare, <span class="dt">SplitRatio =</span> <span class="fl">0.7</span>)  <span class="co"># split vector</span></a>
+<a class="sourceLine" id="cb6-3" title="3"><span class="kw">table</span>(split) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">prop.table</span>()</a></code></pre></div>
 <pre><code>split
   FALSE    TRUE 
-0.24427 0.75573 </code></pre>
+0.29771 0.70229 </code></pre>
 <ul>
 <li>目標變數與分割向量的列聯表</li>
 </ul>
-<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb7-1" title="1"><span class="kw">table</span>(D<span class="op">$</span>PoorCare, split) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">prop.table</span>(<span class="dv">2</span>)</a></code></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb8-1" title="1"><span class="kw">table</span>(D<span class="op">$</span>PoorCare, split) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">prop.table</span>(<span class="dv">2</span>)</a></code></pre></div>
 <pre><code>   split
       FALSE    TRUE
-  0 0.75000 0.74747
-  1 0.25000 0.25253</code></pre>
+  0 0.74359 0.75000
+  1 0.25641 0.25000</code></pre>
 <ul>
 <li>使用分割向量分割資料</li>
 </ul>
-<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb9-1" title="1">TR =<span class="st"> </span><span class="kw">subset</span>(D, split <span class="op">==</span><span class="st"> </span><span class="ot">TRUE</span>)</a>
-<a class="sourceLine" id="cb9-2" title="2">TS =<span class="st"> </span><span class="kw">subset</span>(D, split <span class="op">==</span><span class="st"> </span><span class="ot">FALSE</span>)</a></code></pre></div>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb10-1" title="1">TR =<span class="st"> </span><span class="kw">subset</span>(D, split <span class="op">==</span><span class="st"> </span><span class="ot">TRUE</span>)</a>
+<a class="sourceLine" id="cb10-2" title="2">TS =<span class="st"> </span><span class="kw">subset</span>(D, split <span class="op">==</span><span class="st"> </span><span class="ot">FALSE</span>)</a></code></pre></div>
 <ul>
 <li>建立模型</li>
 </ul>
-<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb10-1" title="1">glm1 =<span class="st"> </span><span class="kw">glm</span>(PoorCare <span class="op">~</span><span class="st"> </span>OfficeVisits <span class="op">+</span><span class="st"> </span>Narcotics, TR, <span class="dt">family=</span>binomial)</a>
-<a class="sourceLine" id="cb10-2" title="2"><span class="kw">summary</span>(glm1)</a></code></pre></div>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb11-1" title="1">glm1 =<span class="st"> </span><span class="kw">glm</span>(PoorCare <span class="op">~</span><span class="st"> </span>OfficeVisits <span class="op">+</span><span class="st"> </span>Narcotics, TR, <span class="dt">family=</span>binomial)</a>
+<a class="sourceLine" id="cb11-2" title="2"><span class="kw">summary</span>(glm1)</a></code></pre></div>
 <pre><code>
 Call:
 glm(formula = PoorCare ~ OfficeVisits + Narcotics, family = binomial, 
     data = TR)
 
 Deviance Residuals: 
-    Min       1Q   Median       3Q      Max  
--2.0630  -0.6316  -0.5050  -0.0969   2.1669  
+   Min      1Q  Median      3Q     Max  
+-1.878  -0.635  -0.517  -0.224   2.146  
 
 Coefficients:
-             Estimate Std. Error z value   Pr(&gt;|z|)    
-(Intercept)   -2.6461     0.5236   -5.05 0.00000043 ***
-OfficeVisits   0.0821     0.0305    2.69     0.0072 ** 
-Narcotics      0.0763     0.0321    2.38     0.0173 *  
+             Estimate Std. Error z value Pr(&gt;|z|)    
+(Intercept)   -2.5662     0.5249   -4.89 0.000001 ***
+OfficeVisits   0.0814     0.0310    2.62   0.0087 ** 
+Narcotics      0.0620     0.0320    1.94   0.0527 .  
 ---
 Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
 
 (Dispersion parameter for binomial family taken to be 1)
 
-    Null deviance: 111.888  on 98  degrees of freedom
-Residual deviance:  89.127  on 96  degrees of freedom
-AIC: 95.13
+    Null deviance: 103.470  on 91  degrees of freedom
+Residual deviance:  84.528  on 89  degrees of freedom
+AIC: 90.53
 
 Number of Fisher Scoring iterations: 4</code></pre>
 <br>
@@ -560,10 +564,10 @@ Number of Fisher Scoring iterations: 4</code></pre>
 </ul>
 <p><br></p>
 <p><strong>機率和勝率之間的關係</strong></p>
-<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb12-1" title="1">pop =<span class="st"> </span><span class="cf">function</span>(p, k) {o =<span class="st"> </span>p<span class="op">/</span>(<span class="dv">1</span><span class="op">-</span>p);  o =<span class="st"> </span>k <span class="op">*</span><span class="st"> </span>o; o<span class="op">/</span>(<span class="dv">1</span><span class="op">+</span>o)}</a>
-<a class="sourceLine" id="cb12-2" title="2">p0 =<span class="st"> </span><span class="kw">seq</span>(<span class="fl">0.1</span>, <span class="fl">0.9</span>, <span class="fl">0.1</span>); k =<span class="st"> </span><span class="dv">2</span></a>
-<a class="sourceLine" id="cb12-3" title="3">p1 =<span class="st"> </span><span class="kw">sapply</span>(<span class="kw">seq</span>(<span class="fl">0.1</span>, <span class="fl">0.9</span>, <span class="fl">0.1</span>), pop, k)</a>
-<a class="sourceLine" id="cb12-4" title="4"><span class="kw">data.frame</span>(k, p0, p1, <span class="dt">difference=</span>p1<span class="op">-</span>p0, <span class="dt">multiplier=</span>p1<span class="op">/</span>p0) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">round</span>(<span class="dv">2</span>) </a></code></pre></div>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb13-1" title="1">pop =<span class="st"> </span><span class="cf">function</span>(p, k) {o =<span class="st"> </span>p<span class="op">/</span>(<span class="dv">1</span><span class="op">-</span>p);  o =<span class="st"> </span>k <span class="op">*</span><span class="st"> </span>o; o<span class="op">/</span>(<span class="dv">1</span><span class="op">+</span>o)}</a>
+<a class="sourceLine" id="cb13-2" title="2">p0 =<span class="st"> </span><span class="kw">seq</span>(<span class="fl">0.1</span>, <span class="fl">0.9</span>, <span class="fl">0.1</span>); k =<span class="st"> </span><span class="dv">2</span></a>
+<a class="sourceLine" id="cb13-3" title="3">p1 =<span class="st"> </span><span class="kw">sapply</span>(<span class="kw">seq</span>(<span class="fl">0.1</span>, <span class="fl">0.9</span>, <span class="fl">0.1</span>), pop, k)</a>
+<a class="sourceLine" id="cb13-4" title="4"><span class="kw">data.frame</span>(k, p0, p1, <span class="dt">difference=</span>p1<span class="op">-</span>p0, <span class="dt">multiplier=</span>p1<span class="op">/</span>p0) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">round</span>(<span class="dv">2</span>) </a></code></pre></div>
 <pre><code>  k  p0   p1 difference multiplier
 1 2 0.1 0.18       0.08       1.82
 2 2 0.2 0.33       0.13       1.67
@@ -574,36 +578,41 @@ Number of Fisher Scoring iterations: 4</code></pre>
 7 2 0.7 0.82       0.12       1.18
 8 2 0.8 0.89       0.09       1.11
 9 2 0.9 0.95       0.05       1.05</code></pre>
-<p><strong>變數的邊際效果</strong></p>
-<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb14-1" title="1">df =<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">OfficeVisits =</span> <span class="kw">median</span>(D<span class="op">$</span>OfficeVisits), <span class="dt">Narcotics=</span><span class="kw">median</span>(D<span class="op">$</span>Narcotics))</a>
-<a class="sourceLine" id="cb14-2" title="2"><span class="kw">predict</span>(glm1, df, <span class="dt">type=</span><span class="st">&quot;response&quot;</span>)</a></code></pre></div>
+<p><span style="font-size:24px"> 💡 </span> 相同的「勝率比(<span class="math inline">\(k=2\)</span>)」在不同的機率(<code>0.1~0.9</code>)下會換算出不同的「機率差(<code>5%~17%</code>)」 <br><br></p>
+<p><strong>變數的邊際效果</strong> 當<code>OfficeVisits</code>和<code>Narcotics</code>分別都等於它們的中位數時，<span class="math inline">\(y=1\)</span>的機率為</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb15-1" title="1">df =<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">OfficeVisits =</span> <span class="kw">median</span>(D<span class="op">$</span>OfficeVisits), <span class="dt">Narcotics=</span><span class="kw">median</span>(D<span class="op">$</span>Narcotics))</a>
+<a class="sourceLine" id="cb15-2" title="2"><span class="kw">predict</span>(glm1, df, <span class="dt">type=</span><span class="st">&quot;response&quot;</span>)</a></code></pre></div>
 <pre><code>      1 
-0.17018 </code></pre>
-<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb16-1" title="1">df =<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">OfficeVisits =</span> <span class="kw">median</span>(D<span class="op">$</span>OfficeVisits)<span class="op">+</span><span class="dv">1</span>, <span class="dt">Narcotics=</span><span class="kw">median</span>(D<span class="op">$</span>Narcotics))</a>
-<a class="sourceLine" id="cb16-2" title="2"><span class="kw">predict</span>(glm1, df, <span class="dt">type=</span><span class="st">&quot;response&quot;</span>)</a></code></pre></div>
+0.17831 </code></pre>
+<p><code>OfficeVisits</code>的<strong>邊際勝率效果</strong>是:<code>exp(0.0814)=1.0848</code></p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb17-1" title="1"><span class="kw">exp</span>(<span class="fl">0.0814</span>)</a></code></pre></div>
+<pre><code>[1] 1.0848</code></pre>
+<p><code>OfficeVisits</code>的<strong>邊際機率效果</strong>是:<code>0.19054-0.17831=0.01223</code></p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb19-1" title="1">df =<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">OfficeVisits =</span> <span class="kw">median</span>(D<span class="op">$</span>OfficeVisits)<span class="op">+</span><span class="dv">1</span>, <span class="dt">Narcotics=</span><span class="kw">median</span>(D<span class="op">$</span>Narcotics))</a>
+<a class="sourceLine" id="cb19-2" title="2"><span class="kw">predict</span>(glm1, df, <span class="dt">type=</span><span class="st">&quot;response&quot;</span>)</a></code></pre></div>
 <pre><code>      1 
-0.18209 </code></pre>
-<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb18-1" title="1">df =<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">OfficeVisits =</span> <span class="kw">median</span>(D<span class="op">$</span>OfficeVisits), <span class="dt">Narcotics=</span><span class="kw">median</span>(D<span class="op">$</span>Narcotics)<span class="op">+</span><span class="dv">1</span>)</a>
-<a class="sourceLine" id="cb18-2" title="2"><span class="kw">predict</span>(glm1, df, <span class="dt">type=</span><span class="st">&quot;response&quot;</span>)</a></code></pre></div>
+0.19054 </code></pre>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb21-1" title="1">df =<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">OfficeVisits =</span> <span class="kw">median</span>(D<span class="op">$</span>OfficeVisits), <span class="dt">Narcotics=</span><span class="kw">median</span>(D<span class="op">$</span>Narcotics)<span class="op">+</span><span class="dv">1</span>)</a>
+<a class="sourceLine" id="cb21-2" title="2"><span class="kw">predict</span>(glm1, df, <span class="dt">type=</span><span class="st">&quot;response&quot;</span>)</a></code></pre></div>
 <pre><code>      1 
-0.18123 </code></pre>
-<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb20-1" title="1">df =<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">OfficeVisits =</span> <span class="kw">median</span>(D<span class="op">$</span>OfficeVisits)<span class="op">+</span><span class="dv">1</span>, <span class="dt">Narcotics=</span><span class="kw">median</span>(D<span class="op">$</span>Narcotics)<span class="op">+</span><span class="dv">1</span>)</a>
-<a class="sourceLine" id="cb20-2" title="2"><span class="kw">predict</span>(glm1, df, <span class="dt">type=</span><span class="st">&quot;response&quot;</span>)</a></code></pre></div>
+0.18757 </code></pre>
+<div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb23-1" title="1">df =<span class="st"> </span><span class="kw">data.frame</span>(<span class="dt">OfficeVisits =</span> <span class="kw">median</span>(D<span class="op">$</span>OfficeVisits)<span class="op">+</span><span class="dv">1</span>, <span class="dt">Narcotics=</span><span class="kw">median</span>(D<span class="op">$</span>Narcotics)<span class="op">+</span><span class="dv">1</span>)</a>
+<a class="sourceLine" id="cb23-2" title="2"><span class="kw">predict</span>(glm1, df, <span class="dt">type=</span><span class="st">&quot;response&quot;</span>)</a></code></pre></div>
 <pre><code>      1 
-0.19373 </code></pre>
+0.20029 </code></pre>
 <p class="wwl">
-<span style="font-size:24px">💡 學習重點：</span><br>   ■ 係數的指數就是勝率比；也就是說，<span class="math inline">\(x_i\)</span> 每增加一，勝率(<span class="math inline">\(Odd[y = 1]\)</span>)會變成原來的 <span class="math inline">\(Exp(b_i)\)</span> 倍<br>   ■ 各預測變數的(勝率)效果是相乘，而不是相加<br>   ■ 機率和勝率之間的關係並不是線性的：<br>     ■ 邏輯式回歸裡面各預測變數的勝率效果是固定的<br>     ■ 但是他們的機率效果並不是固定的<br>     ■ 我們需先推算原先的機率，才能推算變數的機率效果<br><br>
+<span style="font-size:24px">💡 學習重點：</span><br>   ■ 係數的指數就是勝率比；也就是說，<span class="math inline">\(x_i\)</span> 每增加<span class="math inline">\(1\)</span>，<span class="math inline">\(y=1\)</span>的勝率會變成原來的 <span class="math inline">\(Exp(b_i)\)</span> 倍<br>   ■ 各預測變數的(勝率)效果是相乘，而不是相加<br>   ■ 機率和勝率之間的關係並不是線性的：<br>     ■ 邏輯式回歸裡面各預測變數的勝率效果是固定的<br>     ■ 但是他們的機率效果並不是固定的<br>     ■ 我們需先推算原先的機率，才能推算變數的機率效果<br><br>
 </p>
 <p><br></p>
-<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb22-1" title="1"><span class="kw">quantile</span>(D<span class="op">$</span>OfficeVisits)</a></code></pre></div>
+<div class="sourceCode" id="cb25"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb25-1" title="1"><span class="kw">quantile</span>(D<span class="op">$</span>OfficeVisits)</a></code></pre></div>
 <pre><code>  0%  25%  50%  75% 100% 
  0.0  7.0 12.0 18.5 46.0 </code></pre>
-<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb24-1" title="1"><span class="kw">quantile</span>(D<span class="op">$</span>Narcotics)</a></code></pre></div>
+<div class="sourceCode" id="cb27"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb27-1" title="1"><span class="kw">quantile</span>(D<span class="op">$</span>Narcotics)</a></code></pre></div>
 <pre><code>  0%  25%  50%  75% 100% 
    0    0    1    3   59 </code></pre>
 <p><br></p>
 <p class="qiz">
-<span style="font-size:24px">🗿 練習： </span><br>   ■ 當<code>OfficeVisits</code>和<code>Narcotic</code>分別等於他們的第一分位(<code>Q1</code>)時：<br>     ■ <code>PoorCare = 1</code>的機率是？<br>     ■ 兩個自變數的勝率效果分別是？<br>     ■ 兩個自變數的機率效果分別是？<br>   ■ 當<code>OfficeVisits</code>和<code>Narcotic</code>分別等於他們的第三分位(<code>Q3</code>)時：<br>     ■ <code>PoorCare = 1</code>的機率是？<br>     ■ 兩個自變數的勝率效果分別是？<br>     ■ 兩個自變數的機率效果分別是？<br>   ■ 比較以上兩個題目的答案，我們可以觀察到什麼？<br><br>
+<span style="font-size:24px">🗿 練習： </span><br>   ■ 當<code>OfficeVisits</code>和<code>Narcotic</code>分別等於他們的第一分位(<code>Q1</code>)時：<br>     ■ <code>PoorCare = 1</code>的機率是？<br>     ■ 兩個自變數的邊際勝率效果分別是？<br>     ■ 兩個自變數的邊際機率效果分別是？<br>   ■ 當<code>OfficeVisits</code>和<code>Narcotic</code>分別等於他們的第三分位(<code>Q3</code>)時：<br>     ■ <code>PoorCare = 1</code>的機率是？<br>     ■ 兩個自變數的邊際勝率效果分別是？<br>     ■ 兩個自變數的邊際機率效果分別是？<br>   ■ 比較以上兩個題目的答案，我們可以觀察到什麼？<br><br>
 </p>
 <br><br><br>
 <hr>

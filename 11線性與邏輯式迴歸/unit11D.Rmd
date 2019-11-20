@@ -37,12 +37,13 @@ summary(D)
 + 基礎機率
 ```{r}
 base = table(D$PoorCare) # the base probability
+base %>% prop.table
 ```
 
 + 分割資料 (分割向量)
 ```{r}
 set.seed(88)
-split = sample.split(D$PoorCare, SplitRatio = 0.75)  # split vector
+split = sample.split(D$PoorCare, SplitRatio = 0.7)  # split vector
 table(split) %>% prop.table()
 ```
 
@@ -94,13 +95,22 @@ p0 = seq(0.1, 0.9, 0.1); k = 2
 p1 = sapply(seq(0.1, 0.9, 0.1), pop, k)
 data.frame(k, p0, p1, difference=p1-p0, multiplier=p1/p0) %>% round(2) 
 ```
+<span style="font-size:24px"> `r "\U1F4A1"` </span> 相同的「勝率比($k=2$)」在不同的機率(`0.1~0.9`)下會換算出不同的「機率差(`5%~17%`)」
+<br><br>
 
 **變數的邊際效果** 
+當`OfficeVisits`和`Narcotics`分別都等於它們的中位數時，$y=1$的機率為
 ```{r}
 df = data.frame(OfficeVisits = median(D$OfficeVisits), Narcotics=median(D$Narcotics))
 predict(glm1, df, type="response")
 ```
 
+`OfficeVisits`的**邊際勝率效果**是:`exp(0.0814)=1.0848`
+```{r}
+exp(0.0814)
+```
+
+`OfficeVisits`的**邊際機率效果**是:`0.19054-0.17831=0.01223`
 ```{r}
 df = data.frame(OfficeVisits = median(D$OfficeVisits)+1, Narcotics=median(D$Narcotics))
 predict(glm1, df, type="response")
@@ -118,7 +128,7 @@ predict(glm1, df, type="response")
 
 <p class="wwl">
 <span style="font-size:24px">`r "\U1F4A1"` 學習重點：</span><br>
-&emsp; ■ 係數的指數就是勝率比；也就是說，$x_i$ 每增加一，勝率($Odd[y = 1]$)會變成原來的 $Exp(b_i)$ 倍<br>
+&emsp; ■ 係數的指數就是勝率比；也就是說，$x_i$ 每增加$1$，$y=1$的勝率會變成原來的 $Exp(b_i)$ 倍<br>
 &emsp; ■ 各預測變數的(勝率)效果是相乘，而不是相加<br>
 &emsp; ■ 機率和勝率之間的關係並不是線性的：<br>
 &emsp; &emsp; ■ 邏輯式回歸裡面各預測變數的勝率效果是固定的<br>
@@ -140,12 +150,12 @@ quantile(D$Narcotics)
 <span style="font-size:24px">`r "\U1F5FF"` 練習： </span><br>
 &emsp; ■ 當`OfficeVisits`和`Narcotic`分別等於他們的第一分位(`Q1`)時：<br>
 &emsp; &emsp; ■ `PoorCare = 1`的機率是？<br>
-&emsp; &emsp; ■ 兩個自變數的勝率效果分別是？<br>
-&emsp; &emsp; ■ 兩個自變數的機率效果分別是？<br>
+&emsp; &emsp; ■ 兩個自變數的邊際勝率效果分別是？<br>
+&emsp; &emsp; ■ 兩個自變數的邊際機率效果分別是？<br>
 &emsp; ■ 當`OfficeVisits`和`Narcotic`分別等於他們的第三分位(`Q3`)時：<br>
 &emsp; &emsp; ■ `PoorCare = 1`的機率是？<br>
-&emsp; &emsp; ■ 兩個自變數的勝率效果分別是？<br>
-&emsp; &emsp; ■ 兩個自變數的機率效果分別是？<br>
+&emsp; &emsp; ■ 兩個自變數的邊際勝率效果分別是？<br>
+&emsp; &emsp; ■ 兩個自變數的邊際機率效果分別是？<br>
 &emsp; ■ 比較以上兩個題目的答案，我們可以觀察到什麼？<br><br>
 </p class="qiz">
 
