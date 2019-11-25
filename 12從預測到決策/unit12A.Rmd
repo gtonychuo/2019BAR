@@ -1,5 +1,5 @@
 ---
-title: UNIT12A：類別模型、預測機率與商業決策 
+title: UNIT12A：類別模型的準確性指標 
 subtitle: 模型的準確性
 author: 中山大學管理學院 卓雍然
 date: "`r Sys.time()`"
