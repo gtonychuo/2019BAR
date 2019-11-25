@@ -1,0 +1,683 @@
+---
+title: UNIT13：顧客價值管理 
+author: 中山大學管理學院 吳欣容、黃柏融、王欣, 2018/12/24
+output: 
+  html_document:
+    highlight: pygments
+    theme: flatly
+    css: ../style.css
+---
+
+<br><br>
+
+**【請注意】** 某些網頁互動內容只能透過[伺服器網址](https://bap.cm.nsysu.edu.tw/?page_id=1707)撥放<br>
+
+### 前言：從交易記錄到顧客價值
+
+善用商業數據分析的工具和技巧，光靠一份最簡單的交易紀錄(只有顧客ID、交易日期和交易金額三個欄位)，我們就可以做一系列很深入、很有價值的顧客價值分析和行銷策略規劃，包括：
+
++ **交易記錄分析**：
+    + 敘述統計
+    + 趨勢、交叉分析
+    + 資料視覺化
+
++ **顧客群組與標籤**：
+    + 集群分析
+    + 群組屬性分析
+    + 組間流動機率
+    + 顧客(個人)流動機率
+
+
+<center>
+
+![圖一、顧客價值管理的層次](fig/fig1.png) 
+
+</center>
+
+<br>從這一些分析我們可以看到公司主要的營收和獲利的重要來源，我們也可以看到這一些產生獲利的群組是不是有成長或者衰退的趨勢；據此我們可以設定行銷的重點，決定行銷的策略，和規劃行銷的工具。除了上述的敘述統計、集群分析、和資料視覺化之外，我們還可以利用這些簡單的交易紀錄：
+
++ **建立預測性模型**，預測每一位顧客的：
+    + 保留機率
+    + 預期營收
+    + 組間變換機率
+    + 下次可能購買時間
+
+<br>利用這一些預測我們就可以進行全面客製化的： 
+
++ **顧客價值管理**：
+    + 顧客終生價值
+    + 顧客吸收策略
+    + 顧客發展策略
+    + 顧客保留策略
+
++ **針對性行銷**：
+    + 設計行銷方案
+    + 選擇行銷方案
+    + 選擇行銷對象
+
+
+<center>
+
+![圖二、顧客價值管理流程](fig/fig2.png)
+
+</center>
+
+
+
+<br><hr>
+
+##### Setup 
+
+在進行分析之前，先安裝以下基本套件
+
+```{r}
+packages = c(
+  "dplyr","ggplot2","googleVis","devtools","magrittr","caTools","ROCR","caTools")
+existing = as.character(installed.packages()[,1])
+for(pkg in packages[!(packages %in% existing)]) install.packages(pkg)
+
+if(!is.element("chorddiag", existing))
+  devtools::install_github("mattflor/chorddiag")
+
+```
+
+##### Library
+```{r echo=T, message=F, cache=F, warning=F}
+rm(list=ls(all=T))
+options(digits=4, scipen=12)
+library(dplyr)
+library(ggplot2)
+library(caTools)
+library(ROCR)
+library(googleVis)
+library(chorddiag)
+```
+<br><hr>
+
+
+### 1. 資料整理
+
+##### 1.1 交易資料 (X)
+```{r}
+X = read.table(
+  'data/purchases.txt', header=FALSE, sep='\t', stringsAsFactors=F)
+names(X) = c('cid','amount','date')
+X$date = as.Date(X$date)
+summary(X)                  # 交易次數 51243
+
+```
+
++ 在使用read.table時，R會自動將字串string辨認成factor，用stringsAsFactors = F代表，在輸入數據時，遇到字串不會將它轉換成factor，而是保留下原本的字串形式(string)。
+
++ 例如：在這份資料中，日期(如：2005-01-02)原本是字串String，運用stringsAsFactors = F，可以將它保留字串的資料型態，也就是將它轉換為R裡面的時間日期格式。
+
+    + cid為customer的id
+    + amount為花費金額
+    + date為日期
+
++ 將整份資料以"X"命名儲存，從交易時間2005年到2015年，交易筆數51243，十年來看，這間店的資料筆數並不算太多，算是一間小雜貨店。
+
+```{r fig.height=3, fig.width=7.2}
+par(cex=0.8)
+hist(X$date, "years", las=2, freq=T, xlab="", main="No. Transaction by Year")
+```
++ 透過hist可以查看各項變數資料的直方圖。
++ 若要依照年份看，在code輸入year。
++ 同理，也可以依照月份month排序。
+
+
+```{r}
+n_distinct(X$cid)           # 顧客數 18417
+```
+
++ n_distinct代表number of distinct，其中，括弧裡面是放vector(向量)。
++ 用來辨別裡面有多少種數值，這邊放的是cid，藉此計算出有多少customer。
+
+##### 1.2 顧客資料 (A)
+```{r}
+A = X %>% 
+  mutate(days = as.integer(as.Date("2016-01-01") - date)) %>% 
+  group_by(cid) %>% summarise(
+    recent = min(days),     # 最近購買距今天數 
+                            # 選days裡面最小的
+    freq = n(),             # 購買次數
+    money = mean(amount),   # 平均購買金額
+    senior = max(days),     # 第一次購買距今天數
+                            # 選"天數"裡面最大的
+    since = min(date)       # 第一次購買日期#看它的"日期""
+  ) %>% data.frame
+
+```
++ 用group_by將顧客依照cid分組，再用mutate長出一個新欄位，稱為"days"。
++ days的用意：因為整筆資料只到2015年12月底，但我們在算recency(最近購買距今天數)，要從整筆資料的最後一天，再加一天去算回來。
++ 因此，距今天數的"今"，就是最後一天(2015/12/31)再加一天的(2016/1/1)。
++ 將以上資料以"A"命名儲存。
+
+##### 1.4 顧客資料摘要
+```{r}
+summary(A)
+```
+
+##### 1.5 變數的分布狀況
+```{r fig.height=4, fig.width=8}
+p0 = par(cex=0.8, mfrow=c(2,2), mar=c(3,3,4,2))
+hist(A$recent,20,main="recency",ylab="",xlab="")
+hist(pmin(A$freq, 10),0:10,main="frequency",ylab="",xlab="")
+hist(A$senior,20,main="seniority",ylab="",xlab="")
+hist(log(A$money,10),main="log(money)",ylab="",xlab="")
+
+
+```
+
+圖形與變數解析：
+
++ recency：最近購買距今天數。
+    + 在圖形中，可以看到有一根比較長，代表有一些活躍的顧客，到最近一直在買。
+    + 理論上，上一次購買時間越近的顧客是比較好的顧客，對提供即時的商品或服務最可能會有反應。
+
++ seniority：高起來的地方，代表在當時吸收很多顧客。
+
++ frequency：顧客在限定時間內的購買次數。
+    + 我們可以說購買頻率越高的顧客，代表他的滿意度越高，忠誠度也可能越高。
+    + 在R的圖形裡面，我們用pmin來看，設置一個上限，超過10的次數全部加總起來，次數它是一個離散的分布。
+
++ log(money)：money代表消費金額，或客單價。
+    + 把它取log之後，會變的比較normal，較能看出趨勢變化。
+    + X軸中，1代表以10為底，1的對數，是10的意思。
+    + X軸中，2代表以10為底，2的對數，是100的意思。
+
+商務數據分析中，上述的RFM為數據分析中最好的指標，我們可以透過RFM模型了解顧客的價值以及對企業的幫助。
+<br><hr>
+
+### 2. 層級式集群分析
+
+##### 2.1 RFM顧客分群
+```{r}
+set.seed(111)
+A$grp = kmeans(scale(A[,2:4]),10)$cluster
+table(A$grp)  # 族群大小
+```
+
+在此我們用的是集群式分析k-means，將資料依照不同屬性將顧客做分群。
+k-means分完群會把分群的向量放在"cluster"這個欄位裡面，用table(A$grp)看族群大小。
+
+##### 2.2 顧客群組屬性
+```{r fig.height=4.5, fig.width=8}
+group_by(A, grp) %>% summarise(
+  recent=mean(recent), 
+  freq=mean(freq), 
+  money=mean(money), 
+  size=n() ) %>% 
+  mutate( revenue = size*money/1000 )  %>% 
+  filter(size > 1) %>% 
+  ggplot(aes(x=freq, y=money)) +
+  geom_point(aes(size=revenue, col=recent),alpha=0.5) +
+  scale_size(range=c(4,30)) +
+  scale_color_gradient(low="green",high="red") +
+  scale_x_log10() + scale_y_log10(limits=c(30,3000)) + 
+  geom_text(aes(label = size ),size=3) +
+  theme_bw() + guides(size=F) +
+  labs(title="Customer Segements",
+       subtitle="(bubble_size:revenue_contribution; text:group_size)",
+       color="Recency") +
+  xlab("Frequency (log)") + ylab("Average Transaction Amount (log)")
+
+```
+
+圖形解析：
+
++ 將現有顧客分成十群，每個泡泡分別代表一群。
+
++ 4種屬性，大小、顏色、X軸與Y軸可供判讀。
+
+    + X軸：購買頻率。
+    + Y軸：平均交易金額(客單價)。
+    + 泡泡大小：反映這群顧客對你的營收貢獻。
+    + 泡泡顏色：越紅就代表越久沒來買，可能快要流失了。
+
++ 可以針對很常來買(頻率高)，買很少(客單價低)，去做行銷策略，擬定對這群顧客增加客單價的方法。
+
++ 例如:以左上角127人族群與下方3207族群比較，兩者都是營收貢獻大者，但127人的族群的營收貢獻，似乎還比3207族群高，代表雖然族群僅127人，但是他們每人的客單價很高，他們就是我們最重要的顧客！要是讓他們流失掉，會對公司營收造成很大的影響，因此要想盡辦法保留他們！
+
++ 例如:再從3207族群看起，從x軸知道，他們購買的次數不多，從y軸來看，他們購買的金額也不高，但是這個族群有非常多人，我們可以運用行銷方式，增加他們的購買頻率，或是提高客單價，來提高這個族群的營收狀況。反觀右方的2266族群雖然購買次數與3207相似，但他們的客單價卻高很多。
+
+因此，從這些泡泡圖，我們可以知道營收來源主要來自於哪裡。藉此來看出我們的行銷重點應該放在哪一些客群上。
+
+<br><hr>
+
+
+### 3. 規則分群
+
+##### 3.1 顧客分群規則
+```{r}
+STS = c("N1","N2","R1","R2","S1","S2","S3")
+Status = function(rx,fx,mx,sx,K) {factor(
+  ifelse(sx < 2*K,
+         ifelse(fx*mx > 50, "N2", "N1"),
+         ifelse(rx < 2*K,
+                ifelse(sx/fx < 0.75*K,"R2","R1"),
+                ifelse(rx < 3*K,"S1",
+                       ifelse(rx < 4*K,"S2","S3")))), STS)}
+```
+我們先依照三個參數(seniority, frequency, recency)把顧客分群，用ifelse條件式來將顧客區分新潛力顧客、新顧客、核心顧客、主力顧客、瞌睡顧客、半睡顧客、沉睡顧客。
+
++ ifelse的用法是將邏輯式寫在最前面，若判斷為正確則給予第一個指定的類別名；判斷為否則給予第二個指定的類別名。
++ 第一層用”第一次消費距今天數”小於兩倍”平均購買週期”來判斷是否為新顧客。(N1/N2)
++ 第二層的左邊用”頻率和客單價的乘積”是否大於50來判斷是否為潛力顧客；右邊則使用”最近一次消費距今天數”是否小於兩倍”平均購買週期”來判斷是否為主力/核心顧客。(R1/R2)
+
+<center>
+
+![圖三、顧客分群規則](fig/fig3.png)
+
+</center>
+
+##### 3.2 平均購買週期
+```{r}
+K = as.integer(sum(A$senior[A$freq>1]) / sum(A$freq[A$freq>1])); K
+```
+回購顧客的平均購買週期 `K = 521 days`
+
+##### 3.3 滑動資料窗格
+```{r}
+Y = list()              # 建立一個空的LIST
+for(y in 2010:2015) {   # 每年年底將顧客資料彙整成一個資料框
+  D = as.Date(paste0(c(y, y-1),"-12-31")) # 當期、前期的期末日期 
+  Y[[paste0("Y",y)]] = X %>%        # 從交易資料做起
+    filter(date <= D[1]) %>%        # 將資料切齊到期末日期
+    mutate(days = 1 + as.integer(D[1] - date)) %>%   # 交易距期末天數
+    group_by(cid) %>% summarise(    # 依顧客彙總 ...
+      recent = min(days),           #   最後一次購買距期末天數   
+      freq = n(),                   #   購買次數 (至期末為止)   
+      money = mean(amount),         #   平均購買金額 (至期末為止)
+      senior = max(days),           #   第一次購買距期末天數
+      status = Status(recent,freq,money,senior,K),  # 期末狀態
+      since = min(date),                      # 第一次購買日期
+      y_freq = sum(date > D[2]),              # 當期購買次數
+      y_revenue = sum(amount[date > D[2]])    # 當期購買金額
+    ) %>% data.frame }
+```
+
+```{r}
+head(Y$Y2015) #head可以檢視前六筆的資料
+```
+
+##### 3.4 每年年底的累計顧客人數
+```{r}
+sapply(Y, nrow)  #透過sapply可以將清單的每一欄套入你指定的函數，並將結果整理以向量、矩陣、列表的形式輸出。
+
+```
+這邊我們可以看出每一年的交易量
+
+##### 3.5 族群大小變化趨勢
+```{r fig.height=4, fig.width=8}
+cols = c("gold","orange","blue","green","pink","magenta","darkred") #指定每個族群的顏色
+sapply(Y, function(df) table(df$status)) %>% barplot(col=cols) 
+legend("topleft",rev(STS),fill=rev(cols)) #拿來標示圖的圖例，並指定在左上角。
+```
+
+再使用直方圖繪出不同年份下的顧客分群
+
++要注意到的是：顧客可能在不同年份有不同的分群結果(動態) 
+
+
+##### 3.6 族群屬性動態分析
+我們先簡單看一下每一年不同顧客分群及其各特性的平均值。
+```{r}
+CustSegments = do.call(rbind, lapply(Y, function(d) {
+  group_by(d, status) %>% summarise(
+    average_frequency = mean(freq),
+    average_amount = mean(money),
+    total_revenue = sum(y_revenue),
+    total_no_orders = sum(y_freq),
+    average_recency = mean(recent),
+    average_seniority = mean(senior),
+    group_size = n()
+  )})) %>% ungroup %>% 
+  mutate(year=rep(2010:2015, each=7)) %>% data.frame
+head(CustSegments)
+```
+
+
+**【請注意】** 
+
++ 互動式泡泡圖不會出現在你Knit出來的網頁裡面
++ 但你可以在RStudio執行下一個程式區塊，互動式泡泡圖會直接投放到你的瀏覽器上面
++ 你還需要打開Flash選項，才能在瀏覽器裡操作互動式泡泡圖
++ 想要直接在網頁上操作互動式泡泡圖，請參考[伺服器網址](https://bap.cm.nsysu.edu.tw/?page_id=1707)
+
+```{r eval=F, results='asis', tidy=FALSE}
+# op = options(gvis.plot.tag='chart')
+m1 = gvisMotionChart(
+  CustSegments, "status", "year",
+  options=list(width=720, height=480) )
+plot(m1)
+```
+利用動態泡泡圖，我們可追蹤各顧客族群的中、長期變化趨勢，如下圖所示，
+四個主要顧客族群在過去幾年間變化的趨勢都不一樣。
+
+![圖四、顧客分群規則](fig/fig4.png)
+<br>
+
+
+##### 3.7 族群屬性動態分析
+```{r}
+df = merge(Y$Y2014[,c(1,6)], Y$Y2015[,c(1,6)],
+           by="cid", all.x=T)
+tx = table(df$status.x, df$status.y) %>% 
+  as.data.frame.matrix() %>% as.matrix()
+tx    # 流量矩陣(選擇2014和2015兩年的分群結果做流量分析)
+```
+
+我們可以想像今年被判斷是主力顧客的顧客明年可能會變成瞌睡顧客，所以把每兩年的顧客分群結果做流量矩陣來看出數量上的變化
+
+```{r}
+tx %>% prop.table(1) %>% round(3)   # 流量矩陣(%)
+```
+或者是看出百分比的變化。
+
+##### 3.8 互動式流量分析
+```{r}
+chorddiag(tx, groupColors=cols)
+```
+
+利用chorddiag來將剛剛流量變化的結果視覺化。
+
+
+<br><hr>
+
+### 4. 建立模型
+
+在這個案例裡面，我們的資料是收到Y2015年底，所以我們可以假設現在的時間是Y2015年底，我們想要用現有的資料建立模型，來預測每一位顧客：
+
++ 在Y2016年是否會來購買 (保留率：Retain)
++ 她來購買的話，會買多少錢 (購買金額：Revenue)
+
+但是，我們並沒有Y2016的資料，為了要建立模型，我們需要先把時間回推一期，也就是說：
+
++ 用Y2014年底以前的資料整理出預測變數(X) 
++ 用Y2015年的資料整理出目標變數(Y) 
+
+假如Y2016的情況(跟Y2015比)沒有太大的變化的話，接下來我們就可以
+
++ 使用該模型，以Y2015年底的資料，預測Y2016的狀況
+
+##### 4.1 準備資料
+我們用Y2014年底的資料做自變數，Y2015年的資料做應變數
+
+```{r}
+CX = left_join(Y$Y2014, Y$Y2015[,c(1,8,9)], by="cid") #用顧客id來將2015的實際結果合併至2014的資料來做預測
+head(CX)
+```
+
+```{r}
+names(CX)[8:11] = c("freq0","revenue0","Retain", "Revenue") #把2015的實際結果改名為保留/收益
+CX$Retain = CX$Retain > 0
+head(CX)
+```
+
+```{r}
+table(CX$Retain) %>% prop.table()  # 平均保留機率 = 22.54%
+```
+
+##### 4.2 建立類別模型
+```{r}
+mRet = glm(Retain ~ ., CX[,c(2:3,6,8:10)], family=binomial()) #利用邏輯式回歸來預測顧客是否會購買
+summary(mRet)
+```
+從預測的結果我們可以發現除了2014年的收益變數以外，其他變數對預測模型都有顯著的解釋性
+
+
+##### 4.3 估計類別模型的準確性
+```{r}
+pred = predict(mRet,type="response")
+table(pred>0.5,CX$Retain) 
+# 混淆矩陣 (Confusion Matrix)  
+```
+```{r}
+table(pred>0.5,CX$Retain) %>% 
+  {sum(diag(.))/sum(.)}            # 臨界機率 = 0.5 時正確率(ACC): 85.19% 
+```
+```{r}
+colAUC(pred,CX$Retain)             # 辯識率(AUC): 87.92%
+```
+```{r fig.height=4, fig.width=4}
+prediction(pred, CX$Retain) %>%    # ROC CURVE 
+  performance("tpr", "fpr") %>% 
+  plot(print.cutoffs.at=seq(0,1,0.1))
+```
+
++ 混淆矩陣可以看出我們預測的結果及實際結果的關係。
++ 將主對角線的數值加總除以總數可以計算出整個預測模型的準確性。
++ ROC CURVE 為一個用來檢驗敏感性(senstivity)及特異性(specificity)的圖形。
++ 辨識率(AUC)作為檢視一個模型鑑別能力的好壞，也是ROC曲線下的面積。
+
+<center>
+
+![圖五、邏輯式迴歸混淆矩陣](fig/fig5.png)
+
+</center>
+
+##### 4.4 建立數量模型
+
+接著我們來預測會來購買的人會花費多少金額。
+我們必須使用的是迴歸來預測數量。
+
+```{r}
+dx = subset(CX, Revenue > 0)  # 只對有來購買的人做模型
+mRev = lm(log(Revenue) ~ recent + freq + log(1+money) + senior +
+          status + freq0 + log(1+revenue0), dx)  
+summary(mRev)                 # 判定係數：R2 = 0.713
+```
+
+從上面可看出某些變數對模型具有顯著的解釋力，而獲得判定係數為0.713的表現。
+
+```{r fig.height=4.5, fig.width=4.5}
+plot(log(dx$Revenue), predict(mRev), col='pink', cex=0.65)
+abline(0,1,col='red') 
+```
+<br><hr>
+
+### 5. 估計顧客終生價值
+
+##### 5.1 Y2016的預測值
+使用模型對Y2015年底的資料做預測，對資料中的每一位顧客，預測她們在Y2016的保留率和購買金額。
+```{r}
+
+CX = Y$Y2015
+names(CX)[8:9] = c("freq0","revenue0")
+
+# 預測Y2016保留率
+CX$ProbRetain = predict(mRet,CX,type='response')
+
+# 預測Y2016購買金額
+CX$PredRevenue = exp(predict(mRev,CX))
+```
+
++ 將資料框 CX 的資料更改為 2015 年的資料，並將變數欄位 8、9 更改為模型可以認知的名稱 freq0 及 revenue0。
++ 將類別預測模型 ( 2016 年是否會來消費 ) 預測的結果存為 CX 中的 ProbRetain。
++ 將數量預測模型 ( 2016 年會消費多少金額 ) 預測的結果存為 CX 中的 PredRevenue。
+
+```{r fig.height=2.5, fig.width=8}
+par(mfrow=c(1,2), mar=c(4,3,3,2), cex=0.8)
+hist(CX$ProbRetain,main="ProbRetain", ylab="")
+hist(log(CX$PredRevenue,10),main="log(PredRevenue)", ylab="")
+```
+
++ 基礎繪圖設定，接下來的圖為一列兩行併為一張圖，邊界為 4,3,3,2，整體大小為 0.8。
++ 繪製第一個模型的預測結果柱狀圖。
++ 繪製第二個模型的預測結果柱狀圖。注意金額的數字有取 log10。
+
+<br>
+
+##### 5.2 估計顧客終生價值(CLV)
+接著我們透過計算顧客終生價值讓我們了解每一個顧客的潛在價值有多大 。
+
+<center>顧客$i$的終生價值</center>
+
+$$ V_i = \sum_{t=0}^N g \times m_i \frac{r_i^t}{(1+d)^t} = g \times m_i \sum_{t=0}^N (\frac{r_i}{1+d})^t  $$
+
+<center>$m_i$、$r_i$：顧客$i$的預期(每期)營收貢獻、保留機率</center>
+
+<center>$g$、$d$：公司的(稅前)營業利潤利率、資金成本</center>
+
+```{r}
+g = 0.5   # (稅前)獲利率
+N = 5     # 期數 = 5
+d = 0.1   # 利率 = 10%
+CX$CLV = g * CX$PredRevenue * rowSums(sapply(
+  0:N, function(i) (CX$ProbRetain/(1+d))^i ) )
+
+summary(CX$CLV)
+```
+
+```{r fig.height=2.5, fig.width=7.2}
+par(mar=c(2,2,3,1), cex=0.8)
+hist(log(CX$CLV,10), xlab="", ylab="")
+```
+
++ C∗CLV = g∗C∗PredRevenue∗rowSums(sapply(0:N, function(i) (CX$ProbRetain/(1+d))^i ) )
+計算顧客終生價值 : 將獲利率乘上預期獲利，再乘上未來五年預期保留率的現值總和。
+
+##### 5.3 比較各族群的價值
+我們將結果彙整成表格，可以很直接的看到每一個狀態下消費者的平均保留機率、預計花費以及終生價值，這有助於讓我們了解每個消費者狀態的性質並可以對其進行策略擬定。
+
+```{r}
+# 各族群的平均營收貢獻、保留機率、終生價值
+sapply(CX[,10:12], tapply, CX$status, mean)
+```
+
+
+```{r}
+par(mar=c(3,3,4,2), cex=0.8)
+boxplot(log(CLV)~status, CX, main="CLV by Groups")
+
+```
+
++ 基礎繪圖設定，接下來的圖邊界為 3,3,4,2，整體大小為 0.8。
+
++ 繪製顧客終生價值對顧客狀態分群的盒狀圖。
+
+<br><hr>
+
+### 6. 設定行銷策略、規劃行銷工具
+從互動式流量分析以及分群規則來看，我們可以知道各群顧客的移轉程度以及消費特性為何，再根據這些資料進行分析制定客製化的行銷策略，此外我們必須根據顧客終生價值去判斷哪些群的顧客是我們最需要做顧客保留的。
+
+#### 那接下來就讓我們來制定行銷策略吧！
+（策略不一定要跟下面寫的一樣～可以做為參考用！）
+
+**S族群：採用比較刺激的行銷策略喚醒此群顧客，但行銷主力並不在此。**
+<br><hr>
+S1：瞌睡顧客，瞌睡顧客對於這家店的認識有一定時間，有一半的機會成為主力顧客，但也有另一半的機會成為半睡顧客，且極少數會仍保留於此狀態中，雖然CLV偏低，但若成流轉成為主力顧客仍有一定潛力存在，為了增加成為主力顧客的機會，我們利用e-mail行銷，針對此群顧客寄出老顧客的限時特惠商品或是折價券，吸引瞌睡顧客重新回到店裡消費，再加以利用會員制度讓顧客留住在店中。
+<br>
+S2：半睡顧客，此群顧客的CLV值低，且多數會流轉成為沈睡顧客，少數會變成瞌睡顧客，由於顧客保留價值低，故對於此群顧客我們採用不分群的行銷策略模式，利用特惠、週年慶、特賣的方式吸引顧客上門。
+<br>
+S3：沈睡顧客，此類顧客極難再轉為其他種類顧客，此群顧客價值低，保留所造成的效果也不明顯，故採用與S2一樣的不針對性做法，採用較消極的行銷方式。
+
+**R族群：採用提高忠誠度的行銷方式保留此群顧客，其為我們的行銷主力對象。**
+<br><hr>
+R1：主力顧客：主力顧客的CLV為第三高，其比較容易流轉成瞌睡顧客，為了避免變成瞌睡顧客我們必須增強此群的忠誠度，像是設立一些會員分級獎勵制度，越高等級的顧客就能享有越多的尊爵會員優惠，並且每年贈送生日禮等等。藉此吸引主力顧客持續在店消費，降低成為瞌睡顧客的機會。
+<br>
+R2：核心顧客：核心顧客的CLV為最高，其也不太容易轉成其他群顧客，在會員至當中此群顧客最終會成為最高等級會員，以最高等級的會員優惠、無微不至的特別服務，讓核心顧客有美好的消費體驗，持續保留核心顧客。
+
+**N族群：採用持續吸引的方式將新顧客到店消費成為習慣，成為新的R族群顧客，為行銷主力對象。**
+<br><hr>
+N1：新顧客：新顧客屬於還在觀察、觀望的一族群，其消費貢獻不高，CLV極低，流轉為潛力顧客的機會也不高，但必須持續培養新顧客成為忠誠顧客，增加店的業績成長，故即使效益看似不高也必須做一些保留的行銷策略，可以利用一些充滿新鮮感的行銷方式像是集點好禮、現金回饋、新客好禮禮包分階段贈送的方式吸引其持續到店消費。<br>
+
+N2：新潛力顧客：此群顧客對店的收益貢獻相當高，CLV極高，有一定機會成為R2顧客，且有很大機會被保留於原來狀態，故要對此群顧客進行積極的顧客保留行銷方式，可進行新會員入會好禮，將新潛力顧客變成會員，對會員定期推出有趣、優惠的行銷活動，讓其更習慣於在這裡消費，也可以透過寄送e-mail的方式寄送新顧客的專屬優惠。<br>
+
+
+#### 行銷工具規劃
+
+e-mail行銷：做有針對性的行銷活動，根據不同的族群寄送相關訊息，例如對於S族群採用老顧客回娘家活動，N族群採用新顧客歡迎優惠活動，對顧客的狀態投其所好。
+簡訊行銷：採用跟e-mail行銷相同的手法，通知顧客有這些優惠訊息。
+專屬APP：對於急需保留的顧客做積極的顧客保留的動作，透過會員分級制度，將CLV高的族群，R1、R2、N2群顧客培養成忠誠顧客。
+社群行銷：做不針對性地行銷，讓更多人知道店舉辦的活動，擴大其網路聲量，吸引各族群來到店中消費。 
+<br><hr>
+
+### 7. 選擇行銷對象
+當然我們要試試看我們所用的行銷工具是否有用！所以～
+給定某一行銷工具的成本和預期效益，選擇可以施行這項工具的對象。 
+
+##### 7.1 對R2族群進行保留
+R2族群的預測保留率和購買金額
+```{r fig.height=2.5, fig.width=8}
+par(mfrow=c(1,2), mar=c(4,3,3,2), cex=0.8)
+hist(CX$ProbRetain[CX$status=="R2"],main="ProbRetain",xlab="")
+hist(log(CX$PredRevenue[CX$status=="R2"],10),main="PredRevenue",xlab="")
+```
+
+
++ 首先先用par()，對於圖表的格式進行調整，方便觀察。
++ 接著hist()畫出長條圖，觀察R2族群的預測保留率以及預測消費金額，對於消費金額取log使其呈現常態分佈，驗證結果正確性。
++ 在ProbRetain當中x軸為機率，y軸為顧客數量，在PredRevenue中x軸為消費金額，y軸為顧客數量。
+##### 7.2 估計預期報酬
+先來假設一下行銷工具的成本和預期效益，假設是成本是10塊，效益為0.75
+```{r}
+cost = 10        # 成本
+effect = 0.75    # 效益：下一期的購買機率
+```
+
+再來估計這項行銷工具對每一位R2顧客的預期報酬
+```{r}
+Target = subset(CX, status=="R2")
+Target$ExpReturn = (effect - Target$ProbRetain) * Target$PredRevenue - cost
+summary(Target$ExpReturn)
+```
+結果顯示！這一項工具對R2顧客的預期報酬是“負的”
+不過我們還是可以再選擇其他的工具對R2做行銷，直到尋找出最好的預期報酬。
+
++ 先設定我們的預期效益、執行成本為多少。
++ subset出一個新的子集（關於R2群顧客的消費資料），建立成Target。
++ 建立ExpReturn預期報酬，也就是報酬扣掉cost成本，接著summary出結果。
+
+##### 7.3 選擇行銷對象
+但是，我們還是可以挑出許多預期報酬很大的行銷對象
+```{r}
+Target %>% arrange(desc(ExpReturn)) %>% select(cid, ExpReturn) %>% head(15)
+```
+
+```{r}
+sum(Target$ExpReturn > 0)                 # 可實施對象：258
+```
+在R2之中，有258人的預期報酬大於零，如果對這258人使用這項工具，我們的期望報酬是：
+```{r}
+sum(Target$ExpReturn[Target$ExpReturn > 0])   # 預期報酬：6464
+```
+
+##### QUIZ:
+我們可以算出對所有的族群實施這項工具的期望報酬 ...
+```{r}
+Target = CX
+Target$ExpReturn = (effect - Target$ProbRetain) * Target$PredRevenue - cost
+filter(Target, Target$ExpReturn > 0) %>%
+  group_by(status) %>% summarise(
+    No.Target = n(),
+    AvgROI = mean(ExpReturn),
+    TotalROI = sum(ExpReturn) ) %>% data.frame
+```
+
+
+<br><br><hr>
+
+### 8. 結論
+
+如果你只有顧客ID、交易日期、交易金額三個欄位的話，你可以做的分析包括：
+
++ 全體顧客和每一個顧客分群的：
+    + 族群大小與成長趨勢
+    + 族群屬性：如平均CLV、平均營收貢獻、成長率、毛利率(需要有成本資料)等等
+    + 族群特徵比較和趨勢分析
+    + 組間流量和平均流動機率
+
++ 每一個顧客的：
+    + 保留率、預期購買金額、終身價值
+    + 目前所在群組，以及下一期會轉到個群組的機率
+    + 如果有行銷工具的使用紀錄的話，我們也可以估計每一樣行銷工具、對每一位顧客的成功機率
+
+一般而言，這一些分析的結果，足夠讓我們制定顧客發展和顧客保留策略；至於顧客吸收策略，我們通常還需要從CRM撈出顧客個人屬性資料才能做到。 
+
+
+<br><br><hr><br><br><br>
+
+- - -
+
