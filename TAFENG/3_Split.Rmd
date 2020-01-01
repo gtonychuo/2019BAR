@@ -1,0 +1,150 @@
+---
+title: TF3_資料切割 
+author: 卓雍然, 中山大學 管理學術研究中心
+date: "`r Sys.time()`"
+output:
+  html_document:
+    highlight: pygments
+    theme: flatly
+    css: ../style.css
+---
+
+<br>
+
+### 資料準備流程
+
+<center>
+
+![Fig-3: Data Preparation](fig/preparation.jpg)
+
+</center>
+
+<hr>
+
+### Preparing The Predictors (X)
+```{r echo=T, message=F, cache=F, warning=F}
+rm(list=ls(all=TRUE))
+pacman::p_load(magrittr, caTools, ggplot2, dplyr)
+load("data/tf0.rdata")
+```
+
+##### The Demarcation Date
+Remove data after the demarcation date
+```{r}
+feb01 = as.Date("2001-02-01")
+Z = subset(Z0, date < feb01)    # 618212
+```
+
+##### Aggregate for the Transaction Records
+```{r}
+X = group_by(Z, tid) %>% summarise(
+  date = first(date),  # 交易日期
+  cust = first(cust),  # 顧客 ID
+  age = first(age),    # 顧客 年齡級別
+  area = first(area),  # 顧客 居住區別
+  items = n(),                # 交易項目(總)數
+  pieces = sum(qty),          # 產品(總)件數
+  total = sum(price),         # 交易(總)金額
+  gross = sum(price - cost)   # 毛利
+  ) %>% data.frame  # 88387
+```
+
+```{r}
+summary(X)
+```
+
+##### Check Quantile and Remove Outlier 
+```{r}
+sapply(X[,6:9], quantile, prob=c(.999, .9995, .9999))
+```
+
+```{r}
+X = subset(X, items<=64 & pieces<=98 & total<=11260) # 88387 -> 88295
+```
+
+##### Aggregate for Customer Records
+```{r}
+d0 = max(X$date) + 1
+A = X %>% mutate(
+  days = as.integer(difftime(d0, date, units="days"))
+  ) %>% 
+  group_by(cust) %>% summarise(
+    r = min(days),      # recency
+    s = max(days),      # seniority
+    f = n(),            # frquency
+    m = mean(total),    # monetary
+    rev = sum(total),   # total revenue contribution
+    raw = sum(gross),   # total gross profit contribution
+    age = age[1],       # age group
+    area = area[1],     # area code
+  ) %>% data.frame      # 28584
+nrow(A)
+```
+<br><br><hr>
+
+### Preparing the Target Variables (Y)
+
+##### Aggregate Feb's Transaction by Customer
+```{r}
+feb = filter(X0, date>= feb01) %>% group_by(cust) %>% 
+  summarise(amount = sum(total))  # 16900
+```
+
+##### The Target for Regression - `A$amount`
+Simply a Left Joint
+```{r}
+A = merge(A, feb, by="cust", all.x=T)
+```
+
+##### The Target for Classification - `A$buy`
+```{r}
+A$buy = !is.na(A$amount)
+table(A$buy, !is.na(A$amount))
+```
+
+##### Summary of the Dataset
+```{r}
+summary(A)
+```
+
+##### Train & Test Dataset
+```{r}
+X = subset(X, cust %in% A$cust & date < as.Date("2001-02-01"))
+Z = subset(Z, cust %in% A$cust & date < as.Date("2001-02-01"))
+set.seed(2018); spl = sample.split(A$buy, SplitRatio=0.7)
+c(nrow(A), sum(spl), sum(!spl))
+```
+
+```{r fig.height=3, fig.width=7}
+cbind(A, spl) %>% filter(buy) %>% 
+  ggplot(aes(x=log(amount))) + geom_density(aes(fill=spl), alpha=0.5)
+```
+
+
+```{r}
+A2 = subset(A, buy) %>% mutate_at(c("m","rev","amount"), log10)
+n = nrow(A2)
+set.seed(2018); spl2 = 1:n %in% sample(1:n, round(0.7*n))
+c(nrow(A2), sum(spl2), sum(!spl2))
+```
+
+```{r fig.height=3, fig.width=7}
+cbind(A2, spl2) %>% 
+  ggplot(aes(x=amount)) + geom_density(aes(fill=spl2), alpha=0.5)
+```
+
+
+```{r}
+save(Z, X, A, spl, spl2, file="data/tf3.rdata")
+```
+<br>
+
+<center>
+
+![Fig-4: Data Spliting](fig/spliting.jpg)
+
+</center>
+
+
+<br><hr>
+

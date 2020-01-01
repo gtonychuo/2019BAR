@@ -1,0 +1,141 @@
+---
+title: TF4_建立模型 
+author: 卓雍然, 中山大學 管理學術研究中心
+date: "`r Sys.time()`"
+output:
+  html_document:
+    highlight: pygments
+    theme: flatly
+    css: ../style.css
+---
+
+
+### 模型訓練與測試流程
+
+<center>
+
+![Fig-1: The First Model](fig/modeling.jpg)
+</center>
+
+<hr>
+
+### Loading & Preparing Data
+```{r echo=T, message=F, cache=F, warning=F}
+pacman::p_load(dplyr,ggplot2,caTools)
+rm(list=ls(all=TRUE))
+Sys.setlocale("LC_TIME","C")
+load("data/tf3.rdata")
+```
+
+##### Spliting for Classification 
+```{r}
+TR = subset(A, spl)
+TS = subset(A, !spl)
+```
+<br><hr>
+
+### Classification Model
+```{r}
+glm1 = glm(buy ~ ., TR[,c(2:9, 11)], family=binomial()) 
+summary(glm1)
+```
+
+```{r}
+pred =  predict(glm1, TS, type="response")
+cm = table(actual = TS$buy, predict = pred > 0.5); cm
+```
+
+```{r}
+acc.ts = cm %>% {sum(diag(.))/sum(.)}
+c(1-mean(TS$buy) , acc.ts)  # 0.69998
+```
+
+```{r}
+colAUC(pred, TS$buy)        # 0.7556
+```
+<br><hr>
+
+### Regression Model
+```{r}
+A2 = subset(A, A$buy) %>% mutate_at(c("m","rev","amount"), log10)
+TR2 = subset(A2, spl2)
+TS2 = subset(A2, !spl2)
+```
+
+```{r}
+lm1 = lm(amount ~ ., TR2[,c(2:6,8:10)])
+summary(lm1)
+```
+
+```{r}
+r2.tr = summary(lm1)$r.sq
+SST = sum((TS2$amount - mean(TR2$amount))^ 2)
+SSE = sum((predict(lm1, TS2) -  TS2$amount)^2)
+r2.ts = 1 - (SSE/SST)
+c(R2train=r2.tr, R2test=r2.ts)
+```
+<br><hr>
+
+### 製作變數、改進模型
+
+<center>
+
+![Fig-2: Prediction](fig/improving.png)
+
+</center>
+
+
+### 進行預測
+
+<center>
+
+![Fig-3: Prediction](fig/prediction.png)
+</center>
+
+<hr>
+
+Aggregate data 2000-12-01 ~ 2001~02-28. 
+```{r}
+load("data/tf0.rdata")
+d0 = max(X0$date) + 1
+B = X0 %>% 
+  filter(date >= as.Date("2000-12-01")) %>% 
+  mutate(days = as.integer(difftime(d0, date, units="days"))) %>% 
+  group_by(cust) %>% summarise(
+    r = min(days),      # recency
+    s = max(days),      # seniority
+    f = n(),            # frquency
+    m = mean(total),    # monetary
+    rev = sum(total),   # total revenue contribution
+    raw = sum(gross),   # total gross profit contribution
+    age = age[1],       # age group
+    area = area[1],     # area code
+  ) %>% data.frame      # 28584
+nrow(B)
+```
+
+In `B`, there is a record for each customer. `B$Buy` is the probability of buying in March.
+```{r}
+B$Buy = predict(glm1, B, type="response")
+```
+
+<span style="font-size:24px">`r "\U1F4A1"`：</span>
+預測購買金額時要記得做指數、對數轉換！
+
+```{r}
+B2 = B %>% mutate_at(c("m","rev"), log10)
+B$Rev = 10^predict(lm1, B2)
+```
+
+```{r fig.height=2.4, fig.width=7.2}
+par(mfrow=c(1,2), cex=0.8)
+hist(B$Buy)
+hist(log(B$Rev,10))
+```
+
+```{r}
+save(B, file='data/tf4.rdata')
+```
+
+<br><br><hr>
+

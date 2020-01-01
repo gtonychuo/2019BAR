@@ -1,0 +1,58 @@
+---
+title: TF6_購物籃分析 
+author: 卓雍然, 中山大學 管理學術研究中心
+date: "`r Sys.time()`"
+output:
+  html_document:
+    highlight: pygments
+    theme: flatly
+    css: ../style.css
+---
+
+```{r}
+options(scipen=10, digits=3)
+rm(list=ls(all=TRUE))
+pacman::p_load(dplyr, ggplot2, arules, arulesViz)
+load("data/tf0.rdata")
+```
+
+##### 依總毛利對產品名稱作排列
+```{r}
+tapply((Z0$price-Z0$cost), Z0$prod, sum) %>% sort(dec=T) %>% names -> TOP
+```
+<br>
+以下我們示範如何利用購物籃分析，找出會帶來高獲利品項銷售的關聯規則。<br>
+
+### 購物籃分析
+
+##### create a transaction object `tr`
+做購物籃分析之前，需要將訂單裡面的品項製作成一個`transactions`物件(`tr`)
+```{r}
+tr = as(split(Z0[,"prod"], Z0[,"tid"]), "transactions"); tr
+```
+
+##### 找出關連規則
+然後使用`arules::apriori()`這個方法找出品項間的關聯法則(Association Rules)；通常我們會先放寬限制條件，先找一組可能用到的法則。
+```{r}
+R <- apriori(tr, parameter=list(supp=0.0001, conf=0.25))
+```
+
+```{r}
+summary(R)
+```
+
+##### 行銷目標與方法
+然後我們可以設定條件，找到會帶來高營收品項(`rhs`)的關聯規則(`lhs => rhs`)：
+
++ `support` : `lhs`品項被購買的基礎機率
++ `confidence` : `lhs`品項被購買時`rhs`被購買的機率
++ `lift` : `lhs`品項被購買時，`rhs`被購買所增加機率的倍數
++ `count` : 交易筆數(交易筆數如果太少，分析就沒有實質意義)
+
+```{r}
+rx = subset(R, rhs %in% TOP[1:200] & lift >= 50 & count > 100 )
+df = inspect(rx)
+```
+
+<br><br><hr>
+
